@@ -36,6 +36,7 @@ setup(
     long_description=readme + '\n\n',
     author='David LaBissoniere',
     author_email='david@labisso.com',
+    url="https://kazoo.readthedocs.org",
     packages=find_packages(),
     include_package_data=True,
     install_requires=requires,
