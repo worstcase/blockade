@@ -1,8 +1,9 @@
+========
 Blockade
 ========
 
 Blockade is a utility for testing network failures and partitions in
-distributed applications. Blockade uses [Docker](http://www.docker.io)
+distributed applications. Blockade uses `Docker <http://www.docker.io>`_
 containers to run application processes and manages the network from
 the host system to create various failure scenarios.
 
@@ -12,13 +13,14 @@ the nodes. For example in a leader election system, you could partition
 the leader away from the other nodes and ensure that the leader steps
 down and that another node emerges as leader.
 
-Check out the [Blockade documentation](http://blockade.readthedocs.org)!
+Check out the `full documentation <http://blockade.readthedocs.org>`_
+for details.
 
 Blockade features:
 
 * A flexible YAML format to describe the containers in your application
 * Support for dependencies between containers, using named links
-- A CLI tool for managing and querying the status of your blockade
+* A CLI tool for managing and querying the status of your blockade
 * Creation of arbitrary partitions between containers
 * Giving a container a flaky network connection to others (drop packets)
 * Giving a container a slow network connection to others (latency)
@@ -27,12 +29,12 @@ Blockade features:
   and monitor the application.
 
 Blockade is written and maintained by the
-[Dell Cloud Manager](http://www.enstratius.com) (formerly Enstratius)
+`Dell Cloud Manager <http://www.enstratius.com>`_ (formerly Enstratius)
 team and is used internally to test the behaviors of our software.
 We also release a number of other internal components as open source,
-most notably [Dasein Cloud](http://dasein.org).
+most notably `Dasein Cloud <http://dasein.org>`_.
 
-Inspired by the excellent [Jepsen](http://aphyr.com/tags/jepsen) series.
+Inspired by the excellent `Jepsen <http://aphyr.com/tags/jepsen>`_ series.
 
 
 Configuration
@@ -40,34 +42,31 @@ Configuration
 
 Blockade expects a ``blockade.yaml`` file in the current directory which
 describes the containers to launch, how they are linked, and various
-parameters for the blockade modes. Example:
+parameters for the blockade modes. Example::
 
+    containers:
+      c1:
+        image: my_docker_image
+        command: /bin/myapp
+        volumes: {"/opt/myapp": "/opt/myapp_host"}
+        ports: [80]
+        environment: {"IS_MASTER": 1}
 
-```yaml
+      c2:
+        image: my_docker_image
+        command: /bin/myapp
+        volumes: ["/data"]
+        links: {c1: master}
 
-containers:
-  c1:
-    image: my_docker_image
-    command: /bin/myapp
-    volumes: {"/opt/myapp": "/opt/myapp_host"}
-    ports: [80]
-    environment: {"IS_MASTER": 1}
+      c3:
+        image: my_docker_image
+        command: /bin/myapp
+        links: {c1: master}
 
-  c2:
-    image: my_docker_image
-    command: /bin/myapp
-    volumes: ["/data"]
-    links: {c1: master}
+    network:
+      flaky: 30%
+      slow: 75ms 100ms distribution normal
 
-  c3:
-    image: my_docker_image
-    command: /bin/myapp
-    links: {c1: master}
-
-network:
-  flaky: 30%
-  slow: 75ms 100ms distribution normal
-```
 
 Blockade stores transient information in a local ``.blockade/`` directory.
 This directory will be cleaned up automatically when you run the
@@ -132,30 +131,30 @@ partition command replaces any previous partition or block rules.
 
 Remove all partitions between containers.
 
+
 License
 -------
 
 Blockade is offered under the Apache License 2.0.
 
+
 Development
 -----------
 
-Install test depenedencies with ``pip install blockade[test]``.
+Install test dependencies with ``pip install blockade[test]``.
 
 You can run integration tests in a Vagrant VM using the included Vagrantfile.
 Run ``vagrant up`` and Docker will be installed in your VM and tests run.
 You can rerun them with ``vagrant provision``, or SSH into the VM and run
 them yourself, from ``/vagrant``.
 
-Blockade documentation is built with [Sphinx](http://sphinx-doc.org) and is
-found under ``docs/``. To build:
+Blockade documentation is built with Sphinx and is found under ``docs/``.
+To build::
 
-```
-  $ pip install -r requirements_docs.txt
-  $ cd docs/
-  $ make html
-```
+    $ pip install -r requirements_docs.txt
+    $ cd docs/
+    $ make html
 
 HTML output will be under ``docs/_build/html/``.
 
-The documentation is also [hosted online](http://blockade.readthedocs.org).
+The documentation is also `hosted online <http://blockade.readthedocs.org>`_.
