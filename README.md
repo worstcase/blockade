@@ -12,6 +12,8 @@ the nodes. For example in a leader election system, you could partition
 the leader away from the other nodes and ensure that the leader steps
 down and that another node emerges as leader.
 
+Check out the [Blockade documentation](http://blockade.readthedocs.org)!
+
 Blockade features:
 
 * A flexible YAML format to describe the containers in your application
