@@ -1,0 +1,15 @@
+*.pyc
+*.egg-info
+.*.swp
+*.log
+*~
+build/
+dist/
+MANIFEST
+.DS_Store
+.idea
+.tox
+.coverage
+venv
+.vagrant/
+.blockade/

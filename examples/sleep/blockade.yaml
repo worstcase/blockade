@@ -1,0 +1,13 @@
+containers:
+  c1:
+    image: ubuntu
+    command: sh -c 'echo "I am $HOSTNAME"; /bin/sleep 300'
+    volumes: {"/tmp": "/hosttmp"}
+
+  c2:
+    image: ubuntu
+    command: sh -c 'echo "I am $HOSTNAME"; /bin/sleep 300'
+
+  c3:
+    image: ubuntu
+    command: sh -c 'echo "I am $HOSTNAME"; /bin/sleep 300'

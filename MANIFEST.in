@@ -1,0 +1,7 @@
+include TODO.md
+include README.md
+include LICENSE
+include MANIFEST.in
+exclude .gitignore
+recursive-include blockade *
+global-exclude *pyc *pyo
