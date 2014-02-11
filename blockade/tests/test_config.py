@@ -14,8 +14,7 @@
 # limitations under the License.
 #
 
-import unittest
-
+from blockade.tests import unittest
 from blockade.errors import BlockadeConfigError
 from blockade.config import BlockadeConfig, BlockadeContainerConfig, \
     dependency_sorted

@@ -14,11 +14,9 @@
 # limitations under the License.
 #
 
-import unittest
-import subprocess
-
 import mock
 
+from blockade.tests import unittest
 import blockade.net
 from blockade.net import NetworkState, BlockadeNetwork, \
     parse_partition_index, partition_chain_name

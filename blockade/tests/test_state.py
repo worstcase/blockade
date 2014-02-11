@@ -16,9 +16,9 @@
 
 import os
 import shutil
-import unittest
 import tempfile
 
+from blockade.tests import unittest
 from blockade.state import BlockadeStateFactory
 from blockade.errors import NotInitializedError
 

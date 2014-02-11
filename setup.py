@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import os
 from setuptools import setup, find_packages
 
@@ -14,17 +15,26 @@ with open(VERSION_PY) as f:
     exec(code)
 assert __version__, "Failed to get version from %s" % (VERSION_PY)
 
+PYTHON26 = sys.version_info < (2, 7)
+
 requires = [
     "clint",
     "docker-py",
     "pyyaml"
 ]
 
+if PYTHON26:
+    requires.append("argparse")
+
 tests_require = requires + [
     'coverage',
     'mock',
     'nose',
 ]
+
+if PYTHON26:
+    tests_require.append("unittest2")
+
 
 with open('README.md') as f:
     readme = f.read()

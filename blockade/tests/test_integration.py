@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 import os
-import unittest
 import sys
 import tempfile
 import shutil
@@ -24,6 +23,7 @@ from StringIO import StringIO
 
 import mock
 
+from blockade.tests import unittest
 import blockade.cli
 
 

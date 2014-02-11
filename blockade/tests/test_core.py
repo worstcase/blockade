@@ -14,10 +14,9 @@
 # limitations under the License.
 #
 
-import unittest
-
 import mock
 
+from blockade.tests import unittest
 from blockade.core import Blockade, expand_partitions
 from blockade.errors import BlockadeError
 from blockade.config import BlockadeContainerConfig, BlockadeConfig

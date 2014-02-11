@@ -14,8 +14,7 @@
 # limitations under the License.
 #
 
-import unittest
-
+from blockade.tests import unittest
 from blockade import cli
 
 
