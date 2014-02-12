@@ -160,3 +160,31 @@ class IntegrationTests(unittest.TestCase):
             except Exception:
                 print("Failed to destroy Blockade!")
                 traceback.print_exc(file=sys.stdout)
+
+    @unittest.skipIf(*INT_SKIP)
+    def test_ping_link_ordering(self):
+        config_path = example_config_path("ping/blockade.yaml")
+
+        try:
+            self.call_blockade("-c", config_path, "up")
+
+            self.call_blockade("-c", config_path, "status")
+            stdout, _ = self.call_blockade("-c", config_path, "status",
+                                           "--json")
+            parsed = json.loads(stdout)
+            self.assertEqual(len(parsed), 3)
+
+            # we just want to make sure everything came up ok -- that
+            # containers were started in the right order.
+            for container in parsed:
+                self.assertEqual(container['state'], "UP")
+
+            # could actually try to parse out the logs here and assert that
+            # network filters are working.
+
+        finally:
+            try:
+                self.call_blockade("-c", config_path, "destroy")
+            except Exception:
+                print("Failed to destroy Blockade!")
+                traceback.print_exc(file=sys.stdout)
