@@ -36,7 +36,7 @@ if PYTHON26:
     tests_require.append("unittest2")
 
 
-with open('README.md') as f:
+with open('README.rst') as f:
     readme = f.read()
 
 setup(
