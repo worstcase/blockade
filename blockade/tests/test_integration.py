@@ -19,9 +19,11 @@ import tempfile
 import shutil
 import traceback
 import json
-from StringIO import StringIO
+from io import StringIO
 
+import six
 import mock
+from clint.textui.colored import ColoredString
 
 from blockade.tests import unittest
 import blockade.cli
@@ -46,6 +48,15 @@ def example_config_path(filename):
     if not os.path.exists(config_path):
         raise Exception("example config not found: %s" % config_path)
     return config_path
+
+
+def coerce_output(s):
+    if isinstance(s, ColoredString):
+        return six.u(str(s))
+    elif isinstance(s, six.binary_type):
+        return six.u(s)
+    else:
+        return s
 
 
 class IntegrationTests(unittest.TestCase):
@@ -91,14 +102,15 @@ class IntegrationTests(unittest.TestCase):
         stdout = StringIO()
         stderr = StringIO()
         with mock.patch("blockade.cli.puts") as mock_puts:
-            mock_puts.side_effect = stdout.write
+            mock_puts.side_effect = lambda s: stdout.write(coerce_output(s))
 
             with mock.patch("blockade.cli.puts_err") as mock_puts_err:
-                mock_puts_err.side_effect = stderr.write
+                mock_puts_err.side_effect = lambda s: stderr.write(
+                    coerce_output(s))
 
                 try:
                     blockade.cli.main(args)
-                except FakeExit, e:
+                except FakeExit as e:
                     if e.rc != 0:
                         raise
                 return (stdout.getvalue(), stderr.getvalue())
@@ -146,5 +158,5 @@ class IntegrationTests(unittest.TestCase):
             try:
                 self.call_blockade("-c", config_path, "destroy")
             except Exception:
-                print "Failed to destroy Blockade!"
+                print("Failed to destroy Blockade!")
                 traceback.print_exc(file=sys.stdout)

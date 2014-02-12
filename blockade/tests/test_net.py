@@ -15,21 +15,25 @@
 #
 
 import mock
+import subprocess
 
 from blockade.tests import unittest
 import blockade.net
 from blockade.net import NetworkState, BlockadeNetwork, \
     parse_partition_index, partition_chain_name
 
+# NOTE these values are "byte strings" -- to depict output we would see
+# from subprocess calls. We need to make sure we properly decode them
+# in Python3.
 
-NORMAL_QDISC_SHOW = "qdisc pfifo_fast 0: root refcnt 2 bands 3 priomap\n"
-SLOW_QDISC_SHOW = "qdisc netem 8011: root refcnt 2 limit 1000 delay 50.0ms\n"
-FLAKY_QDISC_SHOW = "qdisc netem 8011: root refcnt 2 limit 1000 loss 50%\n"
+NORMAL_QDISC_SHOW = b"qdisc pfifo_fast 0: root refcnt 2 bands 3 priomap\n"
+SLOW_QDISC_SHOW = b"qdisc netem 8011: root refcnt 2 limit 1000 delay 50.0ms\n"
+FLAKY_QDISC_SHOW = b"qdisc netem 8011: root refcnt 2 limit 1000 loss 50%\n"
 
-QDISC_DEL_NOENT = "RTNETLINK answers: No such file or directory"
+QDISC_DEL_NOENT = b"RTNETLINK answers: No such file or directory"
 
 
-_IPTABLES_LIST_FORWARD_1 = """Chain FORWARD (policy ACCEPT)
+_IPTABLES_LIST_FORWARD_1 = b"""Chain FORWARD (policy ACCEPT)
 target     prot opt source               destination
 blockade-aa43racd2-p1  all  --  172.17.0.16         anywhere
 blockade-4eraffr-p1  all  --  172.17.0.17         anywhere
@@ -43,11 +47,11 @@ ACCEPT     all  --  anywhere             anywhere
 ACCEPT     all  --  anywhere             anywhere
 """
 
-_IPTABLES_LIST_FORWARD_2 = """Chain FORWARD (policy ACCEPT)
+_IPTABLES_LIST_FORWARD_2 = b"""Chain FORWARD (policy ACCEPT)
 target     prot opt source               destination
 """
 
-_IPTABLES_LIST_1 = """Chain INPUT (policy ACCEPT)
+_IPTABLES_LIST_1 = b"""Chain INPUT (policy ACCEPT)
 target     prot opt source               destination
 
 Chain FORWARD (policy ACCEPT)
@@ -74,7 +78,7 @@ DROP       all  --  anywhere             172.17.0.162
 DROP       all  --  anywhere             172.17.0.164
 """
 
-_IPTABLES_LIST_2 = """Chain INPUT (policy ACCEPT)
+_IPTABLES_LIST_2 = b"""Chain INPUT (policy ACCEPT)
 target     prot opt source               destination
 
 Chain FORWARD (policy ACCEPT)
@@ -95,6 +99,7 @@ class NetTests(unittest.TestCase):
     def test_iptables_get_blockade_chains(self):
         blockade_id = "blockade-e5dcf85cd2"
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             mock_check_output = mock_subprocess.check_output
             mock_check_output.return_value = _IPTABLES_LIST_FORWARD_1
             result = blockade.net.iptables_get_source_chains(blockade_id)
@@ -105,6 +110,7 @@ class NetTests(unittest.TestCase):
     def test_iptables_delete_blockade_rules_1(self):
         blockade_id = "blockade-e5dcf85cd2"
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             mock_check_output = mock_subprocess.check_output
             mock_check_output.return_value = _IPTABLES_LIST_FORWARD_1
             blockade.net.iptables_delete_blockade_rules(blockade_id)
@@ -120,6 +126,7 @@ class NetTests(unittest.TestCase):
     def test_iptables_delete_blockade_rules_2(self):
         blockade_id = "blockade-e5dcf85cd2"
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             mock_check_output = mock_subprocess.check_output
             mock_check_output.return_value = _IPTABLES_LIST_FORWARD_2
             blockade.net.iptables_delete_blockade_rules(blockade_id)
@@ -130,6 +137,7 @@ class NetTests(unittest.TestCase):
     def test_iptables_delete_blockade_chains_1(self):
         blockade_id = "blockade-e5dcf85cd2"
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             mock_subprocess.check_output.return_value = _IPTABLES_LIST_1
             blockade.net.iptables_delete_blockade_chains(blockade_id)
 
@@ -146,6 +154,7 @@ class NetTests(unittest.TestCase):
     def test_iptables_delete_blockade_chains_2(self):
         blockade_id = "blockade-e5dcf85cd2"
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             mock_subprocess.check_output.return_value = _IPTABLES_LIST_2
             blockade.net.iptables_delete_blockade_chains(blockade_id)
 
@@ -154,6 +163,7 @@ class NetTests(unittest.TestCase):
 
     def test_iptables_insert_rule_1(self):
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             blockade.net.iptables_insert_rule("FORWARD", src="192.168.0.1",
                                               target="DROP")
             mock_subprocess.check_call.assert_called_once_with(
@@ -162,6 +172,7 @@ class NetTests(unittest.TestCase):
 
     def test_iptables_insert_rule_2(self):
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             blockade.net.iptables_insert_rule("FORWARD", src="192.168.0.1",
                                               dest="192.168.0.2",
                                               target="DROP")
@@ -171,6 +182,7 @@ class NetTests(unittest.TestCase):
 
     def test_iptables_insert_rule_3(self):
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             blockade.net.iptables_insert_rule("FORWARD", dest="192.168.0.2",
                                               target="DROP")
             mock_subprocess.check_call.assert_called_once_with(
@@ -179,6 +191,7 @@ class NetTests(unittest.TestCase):
 
     def test_iptables_create_chain(self):
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             blockade.net.iptables_create_chain("hats")
             mock_subprocess.check_call.assert_called_once_with(
                 ["iptables", "-N", "hats"])
@@ -203,6 +216,7 @@ class NetTests(unittest.TestCase):
 
     def test_network_already_normal(self):
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             mock_process = mock_subprocess.Popen.return_value = mock.Mock()
             mock_process.communicate.return_value = "", QDISC_DEL_NOENT
             mock_process.returncode = 2
@@ -225,6 +239,7 @@ class NetTests(unittest.TestCase):
 
     def _network_state(self, state, output):
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             mock_subprocess.check_output.return_value = output
 
             net = BlockadeNetwork(mock.Mock())

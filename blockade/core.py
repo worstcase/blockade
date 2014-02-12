@@ -61,7 +61,7 @@ class Blockade(object):
         container_id = response['Id']
 
         links = dict((docker_container_name(blockade_id, link), alias)
-                     for link, alias in container.links.iteritems())
+                     for link, alias in container.links.items())
 
         lxc_conf = deepcopy(container.lxc_conf)
         lxc_conf['lxc.network.veth.pair'] = veth_device
@@ -73,7 +73,7 @@ class Blockade(object):
                                    network_state=True, ip_partitions=None):
         try:
             container = self.docker_client.inspect_container(container_id)
-        except docker.APIError, e:
+        except docker.APIError as e:
             if e.response.status_code == 404:
                 return Container(name, container_id, ContainerState.MISSING)
             else:
@@ -112,7 +112,7 @@ class Blockade(object):
         state = self.state_factory.load()
 
         containers = self._get_docker_containers(state.blockade_id)
-        for container in containers.values():
+        for container in list(containers.values()):
             container_id = container['Id']
             self.docker_client.stop(container_id, timeout=3)
             self.docker_client.remove_container(container_id)
@@ -136,7 +136,7 @@ class Blockade(object):
         containers = []
         ip_partitions = self.network.get_ip_partitions(state.blockade_id)
         docker_containers = self._get_docker_containers(state.blockade_id)
-        for name, container in docker_containers.iteritems():
+        for name, container in docker_containers.items():
             containers.append(self._get_container_description(state, name,
                               container['Id'], ip_partitions=ip_partitions))
         return containers
@@ -152,7 +152,7 @@ class Blockade(object):
         running = dict((c.name, c) for c in containers
                        if c.state == ContainerState.UP)
         if container_names is None:
-            return running.values()
+            return list(running.values())
 
         found = []
         for name in container_names:
@@ -191,7 +191,7 @@ class Blockade(object):
         state = self.state_factory.load()
         containers = self._get_running_containers(state=state)
         container_dict = dict((c.name, c) for c in containers)
-        partitions = expand_partitions(container_dict.keys(), partitions)
+        partitions = expand_partitions(list(container_dict.keys()), partitions)
 
         container_partitions = []
         for partition in partitions:
@@ -219,7 +219,7 @@ class Container(object):
         self.name = name
         self.container_id = container_id
         self.state = state
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
             setattr(self, k, v)
 
     def to_dict(self):

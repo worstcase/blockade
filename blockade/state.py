@@ -33,7 +33,7 @@ BLOCKADE_STATE_VERSION = 1
 def _assure_dir():
     try:
         os.mkdir(BLOCKADE_STATE_DIR)
-    except OSError, e:
+    except OSError as e:
         if e.errno != errno.EEXIST:
             raise
 
@@ -41,13 +41,13 @@ def _assure_dir():
 def _state_delete():
     try:
         os.remove(BLOCKADE_STATE_FILE)
-    except OSError, e:
+    except OSError as e:
         if e.errno not in (errno.EPERM, errno.ENOENT):
             raise
 
     try:
         os.rmdir(BLOCKADE_STATE_DIR)
-    except OSError, e:
+    except OSError as e:
         if e.errno not in (errno.ENOTEMPTY, errno.ENOENT):
             raise
 
@@ -88,7 +88,7 @@ class BlockadeStateFactory(object):
             flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
             with os.fdopen(os.open(path, flags), "w") as f:
                 yaml.dump(_base_state(blockade_id, containers), f)
-        except OSError, e:
+        except OSError as e:
             if e.errno == errno.EEXIST:
                 raise AlreadyInitializedError(
                     "Path %s exists. "
@@ -107,13 +107,13 @@ class BlockadeStateFactory(object):
                 state = yaml.safe_load(f)
                 return BlockadeState(state['blockade_id'], state['containers'])
 
-        except (IOError, OSError), e:
+        except (IOError, OSError) as e:
             if e.errno == errno.ENOENT:
                 raise NotInitializedError("No blockade exists in this context")
             raise InconsistentStateError("Failed to load Blockade state: "
                                          + str(e))
 
-        except Exception, e:
+        except Exception as e:
             raise InconsistentStateError("Failed to load Blockade state: "
                                          + str(e))
 

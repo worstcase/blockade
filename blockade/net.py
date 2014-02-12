@@ -19,6 +19,7 @@ import string
 import subprocess
 
 from .errors import BlockadeError
+import collections
 
 
 class NetworkState(object):
@@ -79,7 +80,7 @@ def iptables_call_output(*args):
     cmd = ["iptables", "-n"] + list(args)
     try:
         output = subprocess.check_output(cmd)
-        return output.split("\n")
+        return output.decode().split("\n")
     except subprocess.CalledProcessError:
         raise BlockadeError("Problem calling '%s'" % " ".join(cmd))
 
@@ -136,7 +137,7 @@ def iptables_get_source_chains(blockade_id):
 def iptables_delete_rules(chain, predicate):
     if not chain:
         raise ValueError("invalid chain")
-    if not callable(predicate):
+    if not isinstance(predicate, collections.Callable):
         raise ValueError("invalid predicate")
 
     lines = iptables_get_chain_rules(chain)
@@ -242,7 +243,8 @@ def traffic_control_restore(device):
 
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
-    stdout, stderr = p.communicate()
+    _, stderr = p.communicate()
+    stderr = stderr.decode()
 
     if p.returncode != 0:
         if p.returncode == 2 and stderr:
@@ -269,7 +271,7 @@ def traffic_control_netem(device, params):
 def network_state(device):
     try:
         output = subprocess.check_output(
-            ["tc", "qdisc", "show", "dev", device])
+            ["tc", "qdisc", "show", "dev", device]).decode()
         # sloppy but good enough for now
         if " delay " in output:
             return NetworkState.SLOW

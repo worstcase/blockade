@@ -40,10 +40,10 @@ def load_config(opts):
                 with open(path) as f:
                     d = yaml.safe_load(f)
                     return BlockadeConfig.from_dict(d)
-            except IOError, e:
+            except IOError as e:
                 if e.errno != errno.ENOENT:
                     raise
-    except Exception, e:
+    except Exception as e:
         error = e
     raise BlockadeError("Failed to load config (from --config, "
                         "./blockade.yaml, or ./blockade.yml)" +
@@ -240,7 +240,7 @@ def main(args=None):
 
     try:
         opts.func(opts)
-    except BlockadeError, e:
+    except BlockadeError as e:
         puts_err(colored.red("\nError:\n") + str(e) + "\n")
         rc = 1
 

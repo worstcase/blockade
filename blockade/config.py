@@ -52,13 +52,13 @@ class BlockadeConfig(object):
         try:
             containers = d['containers']
             parsed_containers = {}
-            for name, container_dict in containers.iteritems():
+            for name, container_dict in containers.items():
                 try:
                     container = BlockadeContainerConfig.from_dict(
                         name, container_dict)
                     parsed_containers[name] = container
 
-                except Exception, e:
+                except Exception as e:
                     raise BlockadeConfigError(
                         "Container '%s' config problem: %s" % (name, e))
 
@@ -73,10 +73,10 @@ class BlockadeConfig(object):
 
             return BlockadeConfig(parsed_containers, network=network)
 
-        except KeyError, e:
+        except KeyError as e:
             raise BlockadeConfigError("Config missing value: " + str(e))
 
-        except Exception, e:
+        except Exception as e:
             # TODO log this to some debug stream?
             raise BlockadeConfigError("Failed to load config: " + str(e))
 
@@ -91,7 +91,7 @@ def _dictify(data, name="input"):
         if isinstance(data, collections.Sequence):
             return dict((str(v), str(v)) for v in data)
         elif isinstance(data, collections.Mapping):
-            return dict((str(k), str(v or k)) for k, v in data.items())
+            return dict((str(k), str(v or k)) for k, v in list(data.items()))
         else:
             raise BlockadeConfigError("invalid %s: need list or map"
                                       % (name,))
@@ -109,7 +109,7 @@ def dependency_sorted(containers):
 
     # use ordered dict to preserve original order of nondependent containers
     d = collections.OrderedDict((name, set(c.links.keys()))
-                                for name, c in containers.iteritems())
+                                for name, c in containers.items())
     sorted_names = _resolve(d)
     return [containers[name] for name in sorted_names]
 
@@ -121,7 +121,7 @@ def _resolve(d):
 
     while d:
         resolved_keys_count = len(resolved_keys)
-        for name, links in d.items():
+        for name, links in list(d.items()):
             # containers with no links can be started in any order.
             # containers whose parent containers have already been resolved
             # can be added now too.
