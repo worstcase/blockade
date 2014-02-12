@@ -107,27 +107,26 @@ def dependency_sorted(containers):
     if not isinstance(containers, collections.Mapping):
         containers = dict((c.name, c) for c in containers)
 
-    # use ordered dict to preserve original order of nondependent containers
-    d = collections.OrderedDict((name, set(c.links.keys()))
-                                for name, c in containers.items())
-    sorted_names = _resolve(d)
+    container_links = dict((name, set(c.links.keys()))
+                           for name, c in containers.items())
+    sorted_names = _resolve(container_links)
     return [containers[name] for name in sorted_names]
 
 
 def _resolve(d):
-    all_keys = set(d.keys())
+    all_keys = frozenset(d.keys())
     result = []
     resolved_keys = set()
 
     while d:
-        resolved_keys_count = len(resolved_keys)
+        resolved_this_round = set()
         for name, links in list(d.items()):
             # containers with no links can be started in any order.
             # containers whose parent containers have already been resolved
             # can be added now too.
             if not links or links <= resolved_keys:
                 result.append(name)
-                resolved_keys.add(name)
+                resolved_this_round.add(name)
                 del d[name]
 
             # guard against containers which link to unknown containers
@@ -142,7 +141,9 @@ def _resolve(d):
                     (name, unknown))
 
         # if we made no progress this round, we have a circular dep
-        if len(resolved_keys) == resolved_keys_count:
+        if not resolved_this_round:
             raise BlockadeConfigError("containers have circular links!")
+
+        resolved_keys.update(resolved_this_round)
 
     return result

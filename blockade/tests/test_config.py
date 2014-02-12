@@ -227,6 +227,10 @@ class ConfigTests(unittest.TestCase):
     def assertDependencyLevels(self, seq, *levels):
         self.assertEquals(len(seq), sum(len(l) for l in levels))
 
-        for level in levels:
-            self.assertEquals(set(level), set(seq[:len(level)]))
+        for index, level in enumerate(levels):
+            expected = set(level)
+            actual = set(seq[:len(level)])
+            if expected != actual:
+                self.fail("Expected dep level #%d %s but got %s. Sequence: %s" % (index+1, expected, actual, seq))
             seq = seq[len(level):]
+
