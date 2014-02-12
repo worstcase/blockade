@@ -20,7 +20,8 @@ PYTHON26 = sys.version_info < (2, 7)
 requires = [
     "clint",
     "docker-py",
-    "pyyaml"
+    "pyyaml",
+    "six"
 ]
 
 if PYTHON26:
@@ -38,12 +39,14 @@ if PYTHON26:
 
 with open('README.rst') as f:
     readme = f.read()
+with open('CHANGES.rst') as f:
+    changes = f.read()
 
 setup(
     name='blockade',
     version=__version__,
     description='Blockade: network fault testing with Docker',
-    long_description=readme + '\n\n',
+    long_description=readme + '\n\n' + changes + '\n\n',
     author='David LaBissoniere',
     author_email='david@labisso.com',
     url="https://kazoo.readthedocs.org",
@@ -67,6 +70,8 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7'
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.2',
+        'Programming Language :: Python :: 3.3'
     ),
 )

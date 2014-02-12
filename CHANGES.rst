@@ -1,13 +1,13 @@
 Changelog
 =========
 
-0.1.1 (unreleased)
+0.1.1 (2014-02-12)
 ------------------
 
-- Fixed support for Python 2.6 and Python 3.x
+- Support for Python 2.6 and Python 3.x
 
 
 0.1.0 (2014-02-11)
 ------------------
 
-Initial release of Blockade!
+- Initial release of Blockade!

@@ -1,6 +1,6 @@
-========
+********
 Blockade
-========
+********
 
 .. image:: https://travis-ci.org/dcm-oss/blockade.png?branch=master
         :target: https://travis-ci.org/dcm-oss/blockade
@@ -41,7 +41,7 @@ Inspired by the excellent `Jepsen <http://aphyr.com/tags/jepsen>`_ series.
 
 
 Configuration
--------------
+=============
 
 Blockade expects a ``blockade.yaml`` file in the current directory which
 describes the containers to launch, how they are linked, and various
@@ -77,7 +77,7 @@ This directory will be cleaned up automatically when you run the
 
 
 Usage
------
+=====
 
 Blockade may be used from the command line manually. The commands are also
 intended to be easy to wrap and automate within tests, etc.
@@ -86,7 +86,7 @@ Blockade must be run as root (or with sudo).
 
 
 Commands
---------
+========
 
 ``blockade up``
 
@@ -136,13 +136,13 @@ Remove all partitions between containers.
 
 
 License
--------
+=======
 
 Blockade is offered under the Apache License 2.0.
 
 
 Development
------------
+===========
 
 Install test dependencies with ``pip install blockade[test]``.
 
