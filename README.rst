@@ -2,6 +2,9 @@
 Blockade
 ========
 
+.. image:: https://travis-ci.org/dcm-oss/blockade.png?branch=master
+        :target: https://travis-ci.org/dcm-oss/blockade
+
 Blockade is a utility for testing network failures and partitions in
 distributed applications. Blockade uses `Docker <http://www.docker.io>`_
 containers to run application processes and manages the network from
