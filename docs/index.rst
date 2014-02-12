@@ -44,6 +44,7 @@ Reference Documentation
    guide
    config
    commands
+   changes
 
 Development and Support
 =======================
