@@ -157,3 +157,5 @@ found under ``docs/``. To build:
 ```
 
 HTML output will be under ``docs/_build/html/``.
+
+The documentation is also [hosted online](http://blockade.readthedocs.org).
