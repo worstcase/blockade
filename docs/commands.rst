@@ -1,8 +1,8 @@
 .. _commands:
 
-=================
-Blockade Commands
-=================
+========
+Commands
+========
 
 The Blockade CLI is built to make it easy to manually manage your containers,
 and is also easy to wrap in scripts as needed. All commands that produce
