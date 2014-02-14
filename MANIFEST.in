@@ -3,6 +3,7 @@ include README.rst
 include CHANGES.rst
 include LICENSE
 include MANIFEST.in
+include *requirements.txt
 exclude .gitignore
 recursive-include blockade *
 global-exclude *pyc *pyo

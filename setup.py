@@ -17,21 +17,14 @@ assert __version__, "Failed to get version from %s" % (VERSION_PY)
 
 PYTHON26 = sys.version_info < (2, 7)
 
-requires = [
-    "clint",
-    "docker-py",
-    "pyyaml",
-    "six"
-]
+with open("requirements.txt") as fh:
+    requires = fh.readlines()
 
 if PYTHON26:
     requires.append("argparse")
 
-tests_require = requires + [
-    'coverage',
-    'mock',
-    'nose',
-]
+with open("test-requirements.txt") as fh:
+    tests_require = requires + fh.readlines()
 
 if PYTHON26:
     tests_require.append("unittest2")
