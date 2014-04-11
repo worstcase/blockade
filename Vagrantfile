@@ -6,11 +6,26 @@ script = <<SCRIPT
 #!/bin/bash -e
 
 if [ ! -e /vagrant/blockade ]; then
-    echo "/vagrant/blockade not found. are we in a vagrant blockade environment??"
+    echo "/vagrant/blockade not found. are we in a vagrant blockade environment??" >&2
     exit 1
 fi
 
-apt-get -y install python-pip python-virtualenv
+if [ ! -f /etc/default/docker ]; then
+  echo "/etc/default/docker not found -- is docker installed?" >&2
+  exit 1
+fi
+
+apt-get -y install lxc python-pip python-virtualenv
+
+if (source /etc/default/docker && [[ $DOCKER_OPTS != *lxc* ]]); then
+
+  echo "Adjusting docker configuration to use LXC driver, and restarting daemon." >&2
+
+  echo '# Blockade requires the LXC driver for now' >> /etc/default/docker
+  echo 'DOCKER_OPTS="$DOCKER_OPTS -e lxc"' >> /etc/default/docker
+  service docker restart
+
+fi
 
 cd /vagrant
 
@@ -18,11 +33,11 @@ cd /vagrant
 python setup.py install
 
 # and also develop-install into a venv, for dev+test
-if [ ! -e /tmp/ve/bin/activate ]; then
-    rm -fr /tmp/ve
-    virtualenv /tmp/ve
+if [ ! -e /tmp/blockade-ve/bin/activate ]; then
+    rm -fr /tmp/blockade-ve
+    virtualenv /tmp/blockade-ve
 fi
-source /tmp/ve/bin/activate
+source /tmp/blockade-ve/bin/activate
 
 python setup.py develop
 pip install blockade[test]
