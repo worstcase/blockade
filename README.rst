@@ -40,6 +40,19 @@ most notably `Dasein Cloud <http://dasein.org>`_.
 Inspired by the excellent `Jepsen <http://aphyr.com/tags/jepsen>`_ series.
 
 
+Requirements
+============
+
+Docker must be installed and configured to use the LXC driver. The
+``native`` libcontainer driver is not yet supported by Blockade because
+it does not expose the necessary network parameters.
+
+Configure the LXC driver by adding ``-e lxc`` to your Docker daemon options.
+On Ubuntu, this can be done by adding this to ``/etc/default/docker``::
+
+    DOCKER_OPTS="-e lxc"
+
+
 Configuration
 =============
 

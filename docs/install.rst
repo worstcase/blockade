@@ -1,5 +1,22 @@
 .. _install:
 
+============
+Requirements
+============
+
+Docker must be installed and configured to use the LXC driver. The
+``native`` libcontainer driver is not yet supported by Blockade because
+it does not expose the necessary network parameters.
+
+Configure the LXC driver by adding ``-e lxc`` to your Docker daemon options.
+On Ubuntu, this is done by adding the following to ``/etc/default/docker``:
+
+.. code-block:: bash
+
+    DOCKER_OPTS="-e lxc"
+
+Note you will also need to have the LXC command-line utilities installed.
+
 ==========
 Installing
 ==========
