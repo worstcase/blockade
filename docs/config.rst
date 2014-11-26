@@ -14,7 +14,8 @@ is used to describe the containers in your application. Here is an example:
         image: my_docker_image
         command: /bin/myapp
         volumes: {"/opt/myapp": "/opt/myapp_host"}
-        ports: [80]
+        expose: [80]
+        ports: {8080: 80}
         environment: {"IS_MASTER": 1}
 
       c2:
@@ -72,10 +73,10 @@ mountpoint *within the container*. In list form, the host path and container
 mountpoint are assumed to be the same. See the `Docker volumes`_ documentation
 for details about how this works.
 
-``ports``
+``expose``
 ---------
 
-``ports`` is optional and specifies ports to expose from the container. Ports
+``expose`` is optional and specifies ports to expose from the container. Ports
 must be exposed in order to use the Docker `named links`_ feature.
 
 ``links``
@@ -86,6 +87,10 @@ dependent container will be given environment variables with the parent
 container's IP address and port information. See `named links`_ documentation
 for details.
 
+``ports``
+---------
+
+``ports`` is optional and specifies ports published to the host machine. 
 
 Network
 -------
