@@ -3,7 +3,7 @@ containers:
     image: ubuntu
     command: /bin/sleep 30000
     # this port is unused, but we need at least one open for docker links
-    ports: [10000]
+    expose: [10000]
 
   c2:
     image: ubuntu

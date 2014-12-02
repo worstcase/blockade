@@ -2,7 +2,7 @@ containers:
   c1:
     image: ubuntu
     command: sh -c 'echo "I am $HOSTNAME"; /bin/sleep 300'
-    volumes: {"/tmp": "/hosttmp"}
+    volumes: {"/tmp": "/mnt"}
 
   c2:
     image: ubuntu
