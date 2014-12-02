@@ -4,6 +4,12 @@ Changelog
 0.1.2 (unreleased)
 ------------------
 
+- #6: Change `ports` config keyword to match docker usage. It now publishes a
+  container port to the host. The `expose` config keyword now offers the
+  previous behavior of `ports`: it makes a port available from the container,
+  for linking to other containers. Thanks to Simon Bahuchet for the
+  contribution.
+
 
 0.1.1 (2014-02-12)
 ------------------
