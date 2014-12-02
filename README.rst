@@ -65,18 +65,21 @@ parameters for the blockade modes. Example::
         image: my_docker_image
         command: /bin/myapp
         volumes: {"/opt/myapp": "/opt/myapp_host"}
-        ports: [80]
+        expose: [80]
         environment: {"IS_MASTER": 1}
+        ports: {81: 80}
 
       c2:
         image: my_docker_image
         command: /bin/myapp
         volumes: ["/data"]
+        expose: [80]
         links: {c1: master}
 
       c3:
         image: my_docker_image
         command: /bin/myapp
+        expose: [80]
         links: {c1: master}
 
     network:

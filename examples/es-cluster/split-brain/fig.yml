@@ -1,0 +1,46 @@
+node1:
+  image: sisays/elasticsearch-docker:1.4.0
+  hostname: node1
+  name: node1
+  ports:
+   - "9300:9300"
+   - "9200:9200"
+  volumes:
+   - /vagrant/examples/es-cluster/split-brain/run/node1:/data
+  command: /elasticsearch/bin/elasticsearch -Des.config=/data/config/elasticsearch.yml
+  expose:
+   - "9200"
+   - "9300"
+
+node2:
+  image: sisays/elasticsearch-docker:1.4.0
+  hostname: node2
+  name: node2
+  links:
+   - node1
+  ports:
+   - "9301:9300"
+   - "9201:9200"
+  volumes:
+   - /vagrant/examples/es-cluster/split-brain/run/node2:/data
+  command: /elasticsearch/bin/elasticsearch -Des.config=/data/config/elasticsearch.yml
+  expose:
+   - "9200"
+   - "9300"
+
+node3:
+  image: sisays/elasticsearch-docker:1.4.0
+  hostname: node3
+  name: node3
+  links:
+   - node1
+   - node2
+  ports:
+   - "9302:9300"
+   - "9202:9200"
+  volumes:
+   - /vagrant/examples/es-cluster/split-brain/run/node3:/data
+  command: /elasticsearch/bin/elasticsearch -Des.config=/data/config/elasticsearch.yml
+  expose:
+   - "9200"
+   - "9300"

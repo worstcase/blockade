@@ -26,17 +26,19 @@ class BlockadeContainerConfig(object):
             name, d['image'],
             command=d.get('command'), links=d.get('links'),
             lxc_conf=d.get('lxc_conf'), volumes=d.get('volumes'),
-            ports=d.get('ports'), environment=d.get('environment'))
+            publish_ports=d.get('ports'), expose_ports=d.get('expose'),
+            environment=d.get('environment'))
 
     def __init__(self, name, image, command=None, links=None, lxc_conf=None,
-                 volumes=None, ports=None, environment=None):
+                 volumes=None, publish_ports=None, expose_ports=None, environment=None):
         self.name = name
         self.image = image
         self.command = command
         self.links = _dictify(links, "links")
         self.lxc_conf = dict(lxc_conf or {})
         self.volumes = _dictify(volumes, "volumes")
-        self.ports = _dictify(ports, "ports")
+        self.publish_ports = _dictify(publish_ports, "ports")
+        self.expose_ports = _dictify(expose_ports, "expose")
         self.environment = dict(environment or {})
 
 
