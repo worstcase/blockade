@@ -1,8 +1,6 @@
 
 VAGRANTFILE_API_VERSION = "2"
-BOX_NAME = ENV['BOX_NAME'] || "ubuntu"
-BOX_URL = ENV['BOX_URL'] || "http://files.vagrantup.com/precise64.box"
-VMWARE_BOX_URI = ENV['BOX_URI'] || "http://files.vagrantup.com/precise64_vmware_fusion.box"
+BOX_NAME = ENV['BOX_NAME'] || "ubuntu/trusty64"
 script = <<SCRIPT
 #!/bin/bash -e
 
@@ -50,17 +48,12 @@ SCRIPT
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   config.vm.box = BOX_NAME
-  config.vm.box_url = BOX_URL
 
   config.vm.network "forwarded_port", guest: 9200, host: 9200
   config.vm.network "forwarded_port", guest: 9201, host: 9201
   config.vm.network "forwarded_port", guest: 9202, host: 9202
 
   config.vm.provider :virtualbox do |vb, override|
-  end
-
-  config.vm.provider :vmware_fusion do |vb, override|
-    override.vm.box_url = VMWARE_BOX_URI
   end
 
   config.vm.provision "docker",
