@@ -1,4 +1,4 @@
 PyYAML==3.11
-clint==0.3.6
-docker-py==0.3.1
-six==1.6.1
+clint==0.4.1
+docker-py==0.7.0
+six==1.9.0
