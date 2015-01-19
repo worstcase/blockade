@@ -14,6 +14,7 @@ if [ ! -f /etc/default/docker ]; then
   exit 1
 fi
 
+apt-get update
 apt-get -y install lxc python-pip python-virtualenv
 
 if (source /etc/default/docker && [[ $DOCKER_OPTS != *lxc* ]]); then
@@ -28,26 +29,24 @@ fi
 
 cd /vagrant
 
-# install into system python
-python setup.py install
+export PIP_DOWNLOAD_CACHE=/vagrant/.pip_download_cache
 
-# and also develop-install into a venv, for dev+test
-if [ ! -e /tmp/blockade-ve/bin/activate ]; then
-    rm -fr /tmp/blockade-ve
-    virtualenv /tmp/blockade-ve
-fi
-source /tmp/blockade-ve/bin/activate
-
+# install into system python for manual testing
 python setup.py develop
-pip install blockade[test]
 
-export BLOCKADE_INTEGRATION_TESTS=1
-nosetests blockade --with-coverage
+# apt version of tox is still too old in trusty
+pip install tox
+
+tox
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   config.vm.box = BOX_NAME
+
+  if Vagrant.has_plugin?("vagrant-cachier")
+    config.cache.scope = :box
+  end
 
   config.vm.network "forwarded_port", guest: 9200, host: 9200
   config.vm.network "forwarded_port", guest: 9201, host: 9201

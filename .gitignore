@@ -13,3 +13,4 @@ MANIFEST
 venv
 .vagrant/
 .blockade/
+.pip_download_cache/
