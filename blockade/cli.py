@@ -192,7 +192,7 @@ def cmd_logs(opts):
     """
     config = load_config(opts)
     b = get_blockade(config)
-    puts(b.logs(opts.container))
+    puts(b.logs(opts.container).decode(encoding='UTF-8'))
 
 
 _CMDS = (("up", cmd_up), ("destroy", cmd_destroy), ("status", cmd_status),

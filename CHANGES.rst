@@ -9,6 +9,8 @@ Changelog
   previous behavior of `ports`: it makes a port available from the container,
   for linking to other containers. Thanks to Simon Bahuchet for the
   contribution.
+- #9: Fix logs command for Python 3.
+- Updated dependencies.
 
 
 0.1.1 (2014-02-12)
