@@ -13,9 +13,10 @@ On Ubuntu, this is done by adding the following to ``/etc/default/docker``:
 
 .. code-block:: bash
 
-    DOCKER_OPTS="-e lxc"
+    DOCKER_OPTS="-e lxc ${DOCKER_OPTS}"
 
 Note you will also need to have the LXC command-line utilities installed.
+On Ubuntu, this is done by installing ``lxc`` package.
 
 ==========
 Installing
