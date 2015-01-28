@@ -56,6 +56,8 @@ these contents:
 This configuration specifies the three containers we described above. Note
 that we rely on Docker `named links`_ which require at least one open port.
 Hence our sleeping ``c1`` container has a fake port 10000 open.
+The ``ubuntu`` image must exist in your Docker installation.
+You can download it using the docker pull command ``sudo docker pull ubuntu``.
 
 Start the Blockade
 ------------------
