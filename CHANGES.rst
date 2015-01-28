@@ -1,8 +1,8 @@
 Changelog
 =========
 
-0.1.2 (unreleased)
-------------------
+0.1.2 (2015-1-28)
+-----------------
 
 - #6: Change `ports` config keyword to match docker usage. It now publishes a
   container port to the host. The `expose` config keyword now offers the
