@@ -129,7 +129,7 @@ class ConfigTests(unittest.TestCase):
         config = BlockadeConfig.from_dict(d)
         self.assertEqual(len(config.containers), 1)
         c1 = config.containers['c1']
-        self.assertEqual(c1.expose_ports, {"10000": "10000"})
+        self.assertEqual(c1.expose_ports, [10000])
 
     def test_parse_fail_1(self):
         containers = {

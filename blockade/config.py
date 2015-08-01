@@ -38,7 +38,7 @@ class BlockadeContainerConfig(object):
         self.lxc_conf = dict(lxc_conf or {})
         self.volumes = _dictify(volumes, "volumes")
         self.publish_ports = _dictify(publish_ports, "ports")
-        self.expose_ports = _dictify(expose_ports, "expose")
+        self.expose_ports = [int(port) for port in (expose_ports or [])]
         self.environment = dict(environment or {})
 
 
