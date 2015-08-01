@@ -119,6 +119,18 @@ class ConfigTests(unittest.TestCase):
         c1 = config.containers['c1']
         self.assertEqual(c1.environment, {"HATS": 4, "JACKETS": "some"})
 
+    def test_parse_with_publish_1(self):
+        containers = {
+            "c1": {"image": "image1", "ports": {8080: 80}, "expose": [80]}
+        }
+        d = dict(containers=containers, network={})
+
+        config = BlockadeConfig.from_dict(d)
+        self.assertEqual(len(config.containers), 1)
+        c1 = config.containers['c1']
+        self.assertEqual(c1.expose_ports, [80])
+        self.assertEqual(c1.publish_ports, {'8080': '80'})
+
     def test_parse_with_numeric_port(self):
         containers = {
             "c1": {"image": "image1", "command": "/bin/bash",
@@ -223,6 +235,11 @@ class ConfigTests(unittest.TestCase):
 
         with self.assertRaisesRegexp(BlockadeConfigError, "circular"):
             dependency_sorted(containers)
+
+    def test_publish_without_expose_1(self):
+        cont = BlockadeContainerConfig("c1", "image",
+            expose_ports=[], publish_ports={8080: 80})
+        self.assertEqual(cont.expose_ports, [80])
 
     def assertDependencyLevels(self, seq, *levels):
         self.assertEquals(len(seq), sum(len(l) for l in levels))
