@@ -43,7 +43,9 @@ Inspired by the excellent `Jepsen <http://aphyr.com/tags/jepsen>`_ series.
 Requirements
 ============
 
-Docker must be installed and configured to use the LXC driver. The
+Docker must be installed (>= 1.4.0 due to docker-py API requirements, <= 1.6.2
+due to `Docker issue #15231 <https://github.com/docker/docker/issues/15231>`_)
+and configured to use the LXC driver. The
 ``native`` libcontainer driver is not yet supported by Blockade because
 it does not expose the necessary network parameters.
 
