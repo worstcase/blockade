@@ -56,10 +56,12 @@ class Blockade(object):
         volumes = list(container.volumes.values()) or None
         links = dict((docker_container_name(blockade_id, link), alias)
                      for link, alias in container.links.items())
+        # The docker api for port bindings is `internal:external`
+        port_bindings = dict((v, k) for k, v in container.publish_ports.items())
         lxc_conf = deepcopy(container.lxc_conf)
         lxc_conf['lxc.network.veth.pair'] = veth_device
         host_config = docker.utils.create_host_config(binds=container.volumes,
-            port_bindings=container.publish_ports, links=links, lxc_conf=lxc_conf)
+            port_bindings=port_bindings, links=links, lxc_conf=lxc_conf)
 
         response = self.docker_client.create_container(
             container.image, command=container.command, name=container_name,
