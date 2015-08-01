@@ -54,19 +54,20 @@ class Blockade(object):
     def _start_container(self, blockade_id, container, veth_device):
         container_name = docker_container_name(blockade_id, container.name)
         volumes = list(container.volumes.values()) or None
+        links = dict((docker_container_name(blockade_id, link), alias)
+                     for link, alias in container.links.items())
+        lxc_conf = deepcopy(container.lxc_conf)
+        lxc_conf['lxc.network.veth.pair'] = veth_device
+        host_config = docker.utils.create_host_config(binds=container.volumes,
+            port_bindings=container.publish_ports, links=links, lxc_conf=lxc_conf)
+
         response = self.docker_client.create_container(
             container.image, command=container.command, name=container_name,
             ports=container.expose_ports, volumes=volumes, hostname=container.name,
-            environment=container.environment)
+            environment=container.environment, host_config=host_config)
         container_id = response['Id']
 
-        links = dict((docker_container_name(blockade_id, link), alias)
-                     for link, alias in container.links.items())
-
-        lxc_conf = deepcopy(container.lxc_conf)
-        lxc_conf['lxc.network.veth.pair'] = veth_device
-        self.docker_client.start(container_id, lxc_conf=lxc_conf, links=links,
-            binds=container.volumes, port_bindings=container.publish_ports)
+        self.docker_client.start(container_id)
         return container_id
 
     def _get_container_description(self, state, name, container_id,
