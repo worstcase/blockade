@@ -126,10 +126,13 @@ class Blockade(object):
         d = {}
         for container in self.docker_client.containers(all=True):
             for name in container['Names']:
-                if name.startswith(prefix):
-                    name = name[len(prefix):]
-                    d[name] = container
-                    break
+                if not name.startswith(prefix):
+                    continue
+                name = name[len(prefix):]
+                if '/' in name: # pseudo-name created by link
+                    continue
+                d[name] = container
+                break
         return d
 
     def _get_all_containers(self, state):
