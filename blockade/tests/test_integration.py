@@ -20,6 +20,7 @@ import shutil
 import traceback
 import json
 from io import StringIO
+from textwrap import dedent
 
 import six
 import mock
@@ -153,6 +154,42 @@ class IntegrationTests(unittest.TestCase):
 
             stdout, _ = self.call_blockade("-c", config_path, "logs", "c1")
             self.assertEquals("I am c1", stdout.strip())
+
+        finally:
+            try:
+                self.call_blockade("-c", config_path, "destroy")
+            except Exception:
+                print("Failed to destroy Blockade!")
+                traceback.print_exc(file=sys.stdout)
+
+    @unittest.skipIf(*INT_SKIP)
+    def test_containers_name_check(self):
+
+        try:
+            config_path = "./blockade.yaml"
+            with open(config_path, "w") as f:
+                f.write(dedent('''\
+                    containers:
+                      zzz:
+                        image: ubuntu
+                        command: sleep infinity
+                        expose: [10000]
+                      aaa:
+                        image: ubuntu
+                        command: sleep infinity
+                        links: ["zzz"]
+                    '''))
+
+            self.call_blockade("-c", config_path, "up")
+
+            stdout, _ = self.call_blockade("-c", config_path, "status", "--json")
+            parsed = json.loads(stdout)
+            # Make sure the container name of zzz is not the pseudo-name created
+            # by the link (returned as /blockade-86c6c42ff9-aaa/zzz from the
+            # Docker API, reduced to aaa/zzz by blockade. Container names are
+            # (as of 1.7) returned alphabetically, hence the names aaa and zzz.
+            cnames = sorted([c["name"] for c in parsed])
+            self.assertEqual(cnames, ["aaa", "zzz"])
 
         finally:
             try:
