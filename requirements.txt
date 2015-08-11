@@ -1,4 +1,5 @@
 PyYAML==3.11
 clint==0.4.1
-docker-py==0.7.0
+# Next version, 1.0.0, requires Docker 1.5
+docker-py==0.7.2
 six==1.9.0

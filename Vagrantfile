@@ -56,7 +56,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   end
 
   config.vm.provision "docker",
-    images: ["ubuntu"]
+    images: ["ubuntu"], version: "1.6.2"
 
   # kick off the tests automatically
   config.vm.provision "shell", inline: script

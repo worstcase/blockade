@@ -90,7 +90,8 @@ for details.
 ``ports``
 ---------
 
-``ports`` is optional and specifies ports published to the host machine. 
+``ports`` is optional and specifies ports published to the host machine. It is
+a dictionary from external port to internal container port.
 
 Network
 -------
