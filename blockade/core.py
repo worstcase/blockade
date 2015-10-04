@@ -172,6 +172,20 @@ class Blockade(object):
     def _get_running_container(self, container_name, state=None):
         return self._get_running_containers((container_name,), state)[0]
 
+    def pause(self, container_names=None, include_all=False):
+        if include_all:
+            container_names = None
+        containers = self._get_running_containers(container_names)
+        for container in containers:
+            self.docker_client.pause(container.container_id)
+
+    def unpause(self, container_names=None, include_all=False):
+        if include_all:
+            container_names = None
+        containers = self._get_running_containers(container_names)
+        for container in containers:
+            self.docker_client.unpause(container.container_id)
+
     def flaky(self, container_names=None, include_all=False):
         if include_all:
             container_names = None
