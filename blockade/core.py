@@ -114,7 +114,7 @@ class Blockade(object):
     def destroy(self, force=False):
         state = self.state_factory.load()
 
-        containers = self._get_docker_containers(state.blockade_id)
+        containers = self._get_docker_containers(state)
         for container in list(containers.values()):
             container_id = container['Id']
             self.docker_client.stop(container_id, timeout=3)
@@ -123,28 +123,24 @@ class Blockade(object):
         self.network.restore(state.blockade_id)
         self.state_factory.destroy()
 
-    def _get_docker_containers(self, blockade_id):
-        # look for containers prefixed with our blockade ID
-        prefix = "/" + blockade_id + "-"
+    def _get_docker_containers(self, state):
         d = {}
         for container in self.docker_client.containers(all=True):
             for name in container['Names']:
-                if not name.startswith(prefix):
-                    continue
-                name = name[len(prefix):]
-                if '/' in name: # pseudo-name created by link
-                    continue
-                d[name] = container
-                break
+                # strip leading '/'
+                name = name[1:]
+                if name in state.containers:
+                    d[name] = container
+                    break
         return d
 
     def _get_all_containers(self, state):
         containers = []
         ip_partitions = self.network.get_ip_partitions(state.blockade_id)
-        docker_containers = self._get_docker_containers(state.blockade_id)
+        docker_containers = self._get_docker_containers(state)
         for name, container in docker_containers.items():
             containers.append(self._get_container_description(state, name,
-                              container['Id'], ip_partitions=ip_partitions))
+                              ip_partitions=ip_partitions))
         return containers
 
     def status(self):
@@ -243,7 +239,7 @@ class ContainerState(object):
 
 
 def docker_container_name(blockade_id, name):
-    return '-'.join((blockade_id, name))
+    return name
 
 
 def expand_partitions(containers, partitions):
