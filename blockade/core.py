@@ -17,11 +17,12 @@
 from copy import deepcopy
 
 import docker
+import errno
 import os
 import re
 import subprocess
 
-from .errors import BlockadeError
+from .errors import BlockadeError, InsufficientPermissionsError
 from .net import NetworkState, BlockadeNetwork
 from .state import BlockadeStateFactory
 
@@ -47,6 +48,11 @@ class Blockade(object):
             device = None
             try:
                 device = self._get_container_device(container_id, container)
+            except OSError as e:
+                self.docker_client.remove_container(container_id, force=True)
+                if e.errno in [errno.EACCES, errno.EPERM]:
+                    raise InsufficientPermissionsError("Failed to determine network device of container '%s' [%s]" % (container.name, container_id))
+                raise
             except:
                 self.docker_client.remove_container(container_id, force=True)
                 raise

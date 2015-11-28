@@ -38,3 +38,7 @@ class NotInitializedError(BlockadeError):
 class InconsistentStateError(BlockadeError):
     """Blockade state is inconsistent (partially created or destroyed)
     """
+
+class InsufficientPermissionsError(BlockadeError):
+    """Blockade is executed with insufficient permissions
+    """

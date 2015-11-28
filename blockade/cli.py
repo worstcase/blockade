@@ -23,7 +23,7 @@ import json
 import yaml
 from clint.textui import puts, puts_err, colored, columns
 
-from .errors import BlockadeError
+from .errors import BlockadeError, InsufficientPermissionsError
 from .core import Blockade
 from .state import BlockadeStateFactory
 from .config import BlockadeConfig
@@ -240,6 +240,9 @@ def main(args=None):
 
     try:
         opts.func(opts)
+    except InsufficientPermissionsError as e:
+        puts_err(colored.red("\nInsufficient permissions error:\n") + str(e) + "\n")
+        rc = 1
     except BlockadeError as e:
         puts_err(colored.red("\nError:\n") + str(e) + "\n")
         rc = 1
