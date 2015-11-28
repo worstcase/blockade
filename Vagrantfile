@@ -15,17 +15,7 @@ if [ ! -f /etc/default/docker ]; then
 fi
 
 apt-get update
-apt-get -y install lxc python-pip python-virtualenv
-
-if (source /etc/default/docker && [[ $DOCKER_OPTS != *lxc* ]]); then
-
-  echo "Adjusting docker configuration to use LXC driver, and restarting daemon." >&2
-
-  echo '# Blockade requires the LXC driver for now' >> /etc/default/docker
-  echo 'DOCKER_OPTS="$DOCKER_OPTS -e lxc"' >> /etc/default/docker
-  service docker restart
-
-fi
+apt-get -y install python-pip python-virtualenv
 
 cd /vagrant
 
@@ -48,15 +38,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.cache.scope = :box
   end
 
-  config.vm.network "forwarded_port", guest: 9200, host: 9200
-  config.vm.network "forwarded_port", guest: 9201, host: 9201
-  config.vm.network "forwarded_port", guest: 9202, host: 9202
-
   config.vm.provider :virtualbox do |vb, override|
   end
 
-  config.vm.provision "docker",
-    images: ["ubuntu"], version: "1.6.2"
+  config.vm.provision "docker"
 
   # kick off the tests automatically
   config.vm.provision "shell", inline: script

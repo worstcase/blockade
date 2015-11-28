@@ -17,6 +17,10 @@
 from copy import deepcopy
 
 import docker
+import os
+import re
+import subprocess
+import time
 
 from .errors import BlockadeError
 from .net import NetworkState, BlockadeNetwork
@@ -33,47 +37,98 @@ class Blockade(object):
 
     def create(self):
         container_state = {}
-        for container in self.config.sorted_containers:
-            veth_device = self.network.new_veth_device_name()
-            container_state[container.name] = {"veth_device": veth_device}
+        blockade_id = self.state_factory.get_blockade_id()
 
-        # generate blockade ID and persist
-        state = self.state_factory.initialize(container_state)
+        for container in self.config.sorted_containers:
+            container_id = self._start_container(blockade_id, container)
+
+            # next we have to determine the veth pair of host/container
+            # that we formerly could pass in via 'lxc_conf' which is
+            # deprecated since docker > 1.6
+            device = None
+            try:
+                device = self._get_container_device(container_id, container)
+            except:
+                self.docker_client.remove_container(container_id, force=True)
+                raise
+
+            # store device in state file
+            container_state[container.name] = {'device': device, 'id': container_id.encode()}
+
+        # persist container states
+        state = self.state_factory.initialize(container_state, blockade_id)
 
         container_descriptions = []
         for container in self.config.sorted_containers:
-            veth_device = container_state[container.name]['veth_device']
-            container_id = self._start_container(state.blockade_id, container,
-                                                 veth_device)
-            description = self._get_container_description(
-                state, container.name, container_id)
+            description = self._get_container_description(state, container.name)
+
             container_descriptions.append(description)
 
         return container_descriptions
 
-    def _start_container(self, blockade_id, container, veth_device):
+    def _start_container(self, blockade_id, container):
         container_name = docker_container_name(blockade_id, container.name)
         volumes = list(container.volumes.values()) or None
         links = dict((docker_container_name(blockade_id, link), alias)
                      for link, alias in container.links.items())
-        # The docker api for port bindings is `internal:external`
-        port_bindings = dict((v, k) for k, v in container.publish_ports.items())
-        lxc_conf = deepcopy(container.lxc_conf)
-        lxc_conf['lxc.network.veth.pair'] = veth_device
-        host_config = docker.utils.create_host_config(binds=container.volumes,
-            port_bindings=port_bindings, links=links, lxc_conf=lxc_conf)
 
+        # the docker api for port bindings is `internal:external`
+        port_bindings = dict((v, k) for k, v in container.publish_ports.items())
+
+        host_config = docker.utils.create_host_config(binds=container.volumes,
+            port_bindings=port_bindings, links=links)
+
+        # create container
         response = self.docker_client.create_container(
             container.image, command=container.command, name=container_name,
             ports=container.expose_ports, volumes=volumes, hostname=container.name,
             environment=container.environment, host_config=host_config)
+
         container_id = response['Id']
 
+        # start container
         self.docker_client.start(container_id)
+
         return container_id
 
-    def _get_container_description(self, state, name, container_id,
-                                   network_state=True, ip_partitions=None):
+
+    def _get_container_device(self, container_id, container):
+        cont_state = self.docker_client.inspect_container(container_id)
+        sandbox_key = cont_state['NetworkSettings']['SandboxKey']
+
+        # create a symlink to the container's network namespace
+        netns_dir = '/var/run/netns'
+        container_ns = netns_dir+'/'+container.name
+
+        # create parent directory to be sure (this does not necessarily exist)
+        if not os.path.isdir(netns_dir):
+            os.mkdir(netns_dir)
+        os.symlink(sandbox_key, container_ns)
+
+        try:
+            call = ['ip', 'netns', 'exec', container.name,
+                    'ip', '-4', 'a', 's', 'eth0']
+            res = subprocess.check_output(call)
+            peer_idx = int(re.search('^([0-9]+):', res.decode()).group(1))
+
+            # all my experiments showed the host device index was
+            # one greater than its associated container device index
+            host_idx = peer_idx + 1
+            host_res = subprocess.check_output(['ip', 'link'])
+
+            host_device = re.search('^'+str(host_idx)+': ([^:]+):', host_res.decode(), re.M).group(1)
+            return host_device.encode()
+        except subprocess.CalledProcessError:
+            raise BlockadeError("Problem determining host network device for container '%s'" % (container_id))
+        finally:
+            os.remove(container_ns)
+
+
+    def _get_container_description(self, state, name, network_state=True,
+                                   ip_partitions=None):
+        state_container = state.containers[name]
+        container_id = state_container['id']
+
         try:
             container = self.docker_client.inspect_container(container_id)
         except docker.APIError as e:
@@ -98,8 +153,8 @@ class Blockade(object):
 
         if (network_state and name in state.containers
                 and container_state == ContainerState.UP):
-            device = state.containers[name]['veth_device']
-            extras['veth_device'] = device
+            device = state_container['device']
+            extras['device'] = device
             extras['network_state'] = self.network.network_state(device)
 
             # include partition ID if we were provided a map of them
@@ -107,7 +162,7 @@ class Blockade(object):
                 extras['partition'] = ip_partitions.get(ip)
         else:
             extras['network_state'] = NetworkState.UNKNOWN
-            extras['veth_device'] = None
+            extras['device'] = None
 
         return Container(name, container_id, container_state, **extras)
 
@@ -173,21 +228,21 @@ class Blockade(object):
             container_names = None
         containers = self._get_running_containers(container_names)
         for container in containers:
-            self.network.flaky(container.veth_device)
+            self.network.flaky(container.device)
 
     def slow(self, container_names=None, include_all=False):
         if include_all:
             container_names = None
         containers = self._get_running_containers(container_names)
         for container in containers:
-            self.network.slow(container.veth_device)
+            self.network.slow(container.device)
 
     def fast(self, container_names=None, include_all=False):
         if include_all:
             container_names = None
         containers = self._get_running_containers(container_names)
         for container in containers:
-            self.network.fast(container.veth_device)
+            self.network.fast(container.device)
 
     def partition(self, partitions):
         state = self.state_factory.load()
@@ -213,7 +268,7 @@ class Blockade(object):
 
 class Container(object):
     ip_address = None
-    veth_device = None
+    device = None
     network_state = NetworkState.NORMAL
     partition = None
 
@@ -227,7 +282,7 @@ class Container(object):
     def to_dict(self):
         return dict(name=self.name, container_id=self.container_id,
                     state=self.state, ip_address=self.ip_address,
-                    veth_device=self.veth_device,
+                    device=self.device,
                     network_state=self.network_state,
                     partition=self.partition)
 

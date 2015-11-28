@@ -76,9 +76,13 @@ class BlockadeStateFactory(object):
     # a factory, but fuckit..
 
     @staticmethod
+    def get_blockade_id():
+        return BLOCKADE_ID_PREFIX + uuid.uuid4().hex[:10]
+
+    @staticmethod
     def initialize(containers, blockade_id=None):
         if blockade_id is None:
-            blockade_id = BLOCKADE_ID_PREFIX + uuid.uuid4().hex[:10]
+            blockade_id = self.get_blockade_id()
         containers = deepcopy(containers)
 
         f = None
