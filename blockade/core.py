@@ -242,6 +242,13 @@ class Blockade(object):
         for container in containers:
             self.network.slow(container.device)
 
+    def duplicate(self, container_names=None, include_all=False):
+        if include_all:
+            container_names = None
+        containers = self._get_running_containers(container_names)
+        for container in containers:
+            self.network.duplicate(container.device)
+
     def fast(self, container_names=None, include_all=False):
         if include_all:
             container_names = None

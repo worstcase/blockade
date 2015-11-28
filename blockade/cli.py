@@ -154,6 +154,15 @@ def cmd_fast(opts):
     b.fast(containers, select_all)
 
 
+def cmd_duplicate(opts):
+    """Introduce packet duplication into the network of some or all container
+    """
+    containers, select_all = _check_container_selections(opts)
+    config = load_config(opts)
+    b = get_blockade(config)
+    b.duplicate(containers, select_all)
+
+
 def cmd_partition(opts):
     """Partition the network between containers
 
@@ -195,9 +204,16 @@ def cmd_logs(opts):
     puts(b.logs(opts.container).decode(encoding='UTF-8'))
 
 
-_CMDS = (("up", cmd_up), ("destroy", cmd_destroy), ("status", cmd_status),
-         ("logs", cmd_logs), ("flaky", cmd_flaky), ("slow", cmd_slow),
-         ("fast", cmd_fast), ("partition", cmd_partition), ("join", cmd_join))
+_CMDS = (("up", cmd_up),
+         ("destroy", cmd_destroy),
+         ("status", cmd_status),
+         ("logs", cmd_logs),
+         ("flaky", cmd_flaky),
+         ("slow", cmd_slow),
+         ("duplicate", cmd_duplicate),
+         ("fast", cmd_fast),
+         ("partition", cmd_partition),
+         ("join", cmd_join))
 
 
 def setup_parser():
@@ -219,9 +235,11 @@ def setup_parser():
     # add additional parameters to some commands
     _add_output_options(command_parsers["up"])
     _add_output_options(command_parsers["status"])
+
     _add_container_selection_options(command_parsers["flaky"])
     _add_container_selection_options(command_parsers["slow"])
     _add_container_selection_options(command_parsers["fast"])
+    _add_container_selection_options(command_parsers["duplicate"])
 
     command_parsers["logs"].add_argument("container", metavar='CONTAINER',
                                          help="Container to fetch logs for")

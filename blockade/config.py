@@ -49,6 +49,7 @@ class BlockadeContainerConfig(object):
 _DEFAULT_NETWORK_CONFIG = {
     "flaky": "30%",
     "slow": "75ms 100ms distribution normal",
+    "duplicate": "5%",
 }
 
 

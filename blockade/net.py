@@ -26,6 +26,7 @@ class NetworkState(object):
     NORMAL = "NORMAL"
     SLOW = "SLOW"
     FLAKY = "FLAKY"
+    DUPLICATE = "DUPLICATE"
     UNKNOWN = "UNKNOWN"
 
 
@@ -47,6 +48,10 @@ class BlockadeNetwork(object):
     def slow(self, device):
         slow_config = self.config.network['slow'].split()
         traffic_control_netem(device, ["delay"] + slow_config)
+
+    def duplicate(self, device):
+        duplicate_config = self.config.network['duplicate'].split()
+        traffic_control_netem(device, ["duplicate"] + duplicate_config)
 
     def fast(self, device):
         traffic_control_restore(device)
@@ -277,6 +282,8 @@ def network_state(device):
             return NetworkState.SLOW
         if " loss " in output:
             return NetworkState.FLAKY
+        if " duplicate " in output:
+            return NetworkState.DUPLICATE
         return NetworkState.NORMAL
 
     except subprocess.CalledProcessError:
