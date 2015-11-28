@@ -20,7 +20,6 @@ import docker
 import os
 import re
 import subprocess
-import time
 
 from .errors import BlockadeError
 from .net import NetworkState, BlockadeNetwork
