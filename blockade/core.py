@@ -18,9 +18,6 @@ from copy import deepcopy
 
 import docker
 import errno
-import os
-import re
-import subprocess
 
 from .errors import BlockadeError, InsufficientPermissionsError
 from .net import NetworkState, BlockadeNetwork
@@ -47,7 +44,7 @@ class Blockade(object):
             # deprecated since docker > 1.6
             device = None
             try:
-                device = self._get_container_device(container_id, container)
+                device = self.network.get_container_device(self.docker_client, container_id, container)
             except OSError as e:
                 self.docker_client.remove_container(container_id, force=True)
                 if e.errno in [errno.EACCES, errno.EPERM]:
@@ -58,7 +55,7 @@ class Blockade(object):
                 raise
 
             # store device in state file
-            container_state[container.name] = {'device': device, 'id': container_id.encode()}
+            container_state[container.name] = {'device': device, 'id': container_id}
 
         # persist container states
         state = self.state_factory.initialize(container_state, blockade_id)
@@ -95,38 +92,6 @@ class Blockade(object):
         self.docker_client.start(container_id)
 
         return container_id
-
-
-    def _get_container_device(self, container_id, container):
-        cont_state = self.docker_client.inspect_container(container_id)
-        sandbox_key = cont_state['NetworkSettings']['SandboxKey']
-
-        # create a symlink to the container's network namespace
-        netns_dir = '/var/run/netns'
-        container_ns = netns_dir+'/'+container.name
-
-        # create parent directory to be sure (this does not necessarily exist)
-        if not os.path.isdir(netns_dir):
-            os.mkdir(netns_dir)
-        os.symlink(sandbox_key, container_ns)
-
-        try:
-            call = ['ip', 'netns', 'exec', container.name,
-                    'ip', '-4', 'a', 's', 'eth0']
-            res = subprocess.check_output(call)
-            peer_idx = int(re.search('^([0-9]+):', res.decode()).group(1))
-
-            # all my experiments showed the host device index was
-            # one greater than its associated container device index
-            host_idx = peer_idx + 1
-            host_res = subprocess.check_output(['ip', 'link'])
-
-            host_device = re.search('^'+str(host_idx)+': ([^:]+):', host_res.decode(), re.M).group(1)
-            return host_device.encode()
-        except subprocess.CalledProcessError:
-            raise BlockadeError("Problem determining host network device for container '%s'" % (container_id))
-        finally:
-            os.remove(container_ns)
 
 
     def _get_container_description(self, state, name, network_state=True,
@@ -188,7 +153,7 @@ class Blockade(object):
         for container in self.docker_client.containers(all=True):
             for name in container['Names']:
                 # strip leading '/'
-                name = name[1:]
+                name = name[1:] if name[0] == '/' else name
                 if name in state.containers:
                     d[name] = container
                     break

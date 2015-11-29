@@ -82,7 +82,7 @@ class BlockadeStateFactory(object):
     @staticmethod
     def initialize(containers, blockade_id=None):
         if blockade_id is None:
-            blockade_id = self.get_blockade_id()
+            blockade_id = BlockadeStateFactory.get_blockade_id()
         containers = deepcopy(containers)
 
         f = None
@@ -91,7 +91,7 @@ class BlockadeStateFactory(object):
         try:
             flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
             with os.fdopen(os.open(path, flags), "w") as f:
-                yaml.dump(_base_state(blockade_id, containers), f)
+                yaml.safe_dump(_base_state(blockade_id, containers), f)
         except OSError as e:
             if e.errno == errno.EEXIST:
                 raise AlreadyInitializedError(

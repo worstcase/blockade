@@ -39,7 +39,10 @@ class BlockadeCoreTests(unittest.TestCase):
 
         self.network.new_veth_device_name.side_effect = ["veth1", "veth2",
                                                          "veth3"]
-        initialize = lambda x: BlockadeState("ourblockadeid", x)
+
+        self.network.get_container_device.side_effect = lambda dc, x, y: "veth"+y.name
+
+        initialize = lambda x, y: BlockadeState("ourblockadeid", x)
         self.state_factory.initialize.side_effect = initialize
         self.docker_client.create_container.side_effect = [
             {"Id": "container1"},
@@ -48,6 +51,7 @@ class BlockadeCoreTests(unittest.TestCase):
 
         b = Blockade(config, self.state_factory, self.network,
                      self.docker_client)
+
         b.create()
 
         self.assertEqual(self.state_factory.initialize.call_count, 1)

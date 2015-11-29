@@ -14,7 +14,9 @@
 # limitations under the License.
 #
 
+import os
 import random
+import re
 import string
 import subprocess
 
@@ -65,6 +67,37 @@ class BlockadeNetwork(object):
 
     def get_ip_partitions(self, blockade_id):
         return iptables_get_source_chains(blockade_id)
+
+    def get_container_device(self, docker_client, container_id, container):
+        cont_state = docker_client.inspect_container(container_id)
+        sandbox_key = cont_state['NetworkSettings']['SandboxKey']
+
+        # create a symlink to the container's network namespace
+        netns_dir = '/var/run/netns'
+        container_ns = netns_dir+'/'+container.name
+
+        # create parent directory to be sure (this does not necessarily exist)
+        if not os.path.isdir(netns_dir):
+            os.mkdir(netns_dir)
+        os.symlink(sandbox_key, container_ns)
+
+        try:
+            call = ['ip', 'netns', 'exec', container.name,
+                    'ip', '-4', 'a', 's', 'eth0']
+            res = subprocess.check_output(call)
+            peer_idx = int(re.search('^([0-9]+):', res.decode()).group(1))
+
+            # all my experiments showed the host device index was
+            # one greater than its associated container device index
+            host_idx = peer_idx + 1
+            host_res = subprocess.check_output(['ip', 'link'])
+
+            host_device = re.search('^'+str(host_idx)+': ([^:]+):', host_res.decode(), re.M).group(1)
+            return host_device
+        except subprocess.CalledProcessError:
+            raise BlockadeError("Problem determining host network device for container '%s'" % (container_id))
+        finally:
+            os.remove(container_ns)
 
 
 def parse_partition_index(blockade_id, chain):
