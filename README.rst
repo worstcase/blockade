@@ -2,8 +2,9 @@
 Blockade
 ********
 
-.. image:: https://travis-ci.org/dcm-oss/blockade.png?branch=master
-        :target: https://travis-ci.org/dcm-oss/blockade
+    This repository is a fork of the original
+    `blockade <https://github.com/dcm-oss/blockade>`_ developed by
+    `dcm-oss <https://github.com/dcm-oss/>`_.
 
 Blockade is a utility for testing network failures and partitions in
 distributed applications. Blockade uses `Docker <http://www.docker.io>`_
@@ -123,6 +124,11 @@ Make network flaky to one or more containers.
 ``blockade slow n1``
 
 Make network slow to one or more containers.
+
+
+``blockade duplicate n1``
+
+Toggle sporadic duplicate packets in the network of one or more containers.
 
 
 ``blockade fast n1``
