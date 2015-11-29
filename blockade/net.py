@@ -36,10 +36,6 @@ class BlockadeNetwork(object):
     def __init__(self, config):
         self.config = config
 
-    def new_veth_device_name(self):
-        chars = string.ascii_letters + string.digits
-        return "veth" + "".join(random.choice(chars) for _ in range(8))
-
     def network_state(self, device):
         return network_state(device)
 

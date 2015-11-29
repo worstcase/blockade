@@ -37,9 +37,6 @@ class BlockadeCoreTests(unittest.TestCase):
                       BlockadeContainerConfig("c3", "image")]
         config = BlockadeConfig(containers)
 
-        self.network.new_veth_device_name.side_effect = ["veth1", "veth2",
-                                                         "veth3"]
-
         self.network.get_container_device.side_effect = lambda dc, x, y: "veth"+y.name
 
         initialize = lambda x, y: BlockadeState("ourblockadeid", x)
