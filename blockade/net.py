@@ -88,7 +88,7 @@ class BlockadeNetwork(object):
             host_idx = peer_idx + 1
             host_res = subprocess.check_output(['ip', 'link'])
 
-            host_device = re.search('^'+str(host_idx)+': ([^:]+):', host_res.decode(), re.M).group(1)
+            host_device = re.search('^'+str(host_idx)+': ([^:@]+)[:@]', host_res.decode(), re.M).group(1)
             return host_device
         except subprocess.CalledProcessError:
             raise BlockadeError("Problem determining host network device for container '%s'" % (container_id))
