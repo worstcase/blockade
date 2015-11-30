@@ -64,7 +64,7 @@ class Blockade(object):
         except OSError as e:
             self.docker_client.remove_container(container_id, force=True)
 
-            if e.errno in [errno.EACCES, errno.EPERM]:
+            if e.errno in (errno.EACCES, errno.EPERM):
                 msg = "Failed to determine network device of container '%s' [%s]" % (container_name, container_id)
                 raise InsufficientPermissionsError(msg)
             raise
@@ -165,16 +165,6 @@ class Blockade(object):
                     break
         return d
 
-    def _get_container_id_by_name(self, name):
-        containers = self.docker_client.containers(all=True)
-        for container in containers:
-            for cname in container['Names']:
-                # strip leading '/'
-                cname = cname[1:] if cname[0] == '/' else cname
-                if cname == name:
-                    return container['Id']
-        return None
-
     def _get_all_containers(self, state):
         containers = []
         ip_partitions = self.network.get_ip_partitions(state.blockade_id)
@@ -209,38 +199,28 @@ class Blockade(object):
     def _get_running_container(self, container_name, state=None):
         return self._get_running_containers((container_name,), state)[0]
 
-    def flaky(self, container_names=None, include_all=False):
-        if include_all:
-            container_names = None
-        containers = self._get_running_containers(container_names)
+    def flaky(self, container_names, state):
+        containers = self._get_running_containers(container_names, state)
         for container in containers:
             self.network.flaky(container.device)
 
-    def slow(self, container_names=None, include_all=False):
-        if include_all:
-            container_names = None
-        containers = self._get_running_containers(container_names)
+    def slow(self, container_names, state):
+        containers = self._get_running_containers(container_names, state)
         for container in containers:
             self.network.slow(container.device)
 
-    def duplicate(self, container_names=None, include_all=False):
-        if include_all:
-            container_names = None
-        containers = self._get_running_containers(container_names)
+    def duplicate(self, container_names, state):
+        containers = self._get_running_containers(container_names, state)
         for container in containers:
             self.network.duplicate(container.device)
 
-    def fast(self, container_names=None, include_all=False):
-        if include_all:
-            container_names = None
-        containers = self._get_running_containers(container_names)
+    def fast(self, container_names, state):
+        containers = self._get_running_containers(container_names, state)
         for container in containers:
             self.network.fast(container.device)
 
-    def stop(self, container_names=None, include_all=False):
-        if include_all:
-            container_names = None
-        containers = self._get_running_containers(container_names)
+    def stop(self, container_names, state):
+        containers = self._get_running_containers(container_names, state)
         for container in containers:
             self._stop_container(container)
 
@@ -249,12 +229,10 @@ class Blockade(object):
         kill_timeout = 3
         self.docker_client.stop(container.container_id, timeout=kill_timeout)
 
-    def start(self, container_names=None, include_all=False):
-        # TODO: support '--all'
-        state = self.state_factory.load()
+    def start(self, container_names, state):
         for container in container_names:
-            container_id = self._get_container_id_by_name(container)
-            if not container_id:
+            container_id = state.container_id(container)
+            if container_id is None:
                 continue
 
             # TODO: determine between create and/or start?

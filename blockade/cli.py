@@ -127,58 +127,55 @@ def cmd_status(opts):
     print_containers(containers, opts.json)
 
 
-def cmd_start(opts):
-    """Start some or all containers
-    """
+def __with_containers(opts, func):
     containers, select_all = _check_container_selections(opts)
     config = load_config(opts)
     b = get_blockade(config)
-    b.start(containers, select_all)
+    state = b.state_factory.load()
+
+    configured_containers = set(state.containers.keys())
+    container_names = configured_containers if select_all or None else configured_containers.intersection(containers)
+
+    if len(container_names) > 0:
+        return func(b, container_names, state)
+    else:
+        raise BlockadeError('selection does not match any container')
+
+
+def cmd_start(opts):
+    """Start some or all containers
+    """
+    __with_containers(opts, Blockade.start)
 
 
 def cmd_stop(opts):
     """Stop some or all containers
     """
-    containers, select_all = _check_container_selections(opts)
-    config = load_config(opts)
-    b = get_blockade(config)
-    b.stop(containers, select_all)
+    __with_containers(opts, Blockade.stop)
 
 
 def cmd_flaky(opts):
     """Make the network flaky for some or all containers
     """
-    containers, select_all = _check_container_selections(opts)
-    config = load_config(opts)
-    b = get_blockade(config)
-    b.flaky(containers, select_all)
+    __with_containers(opts, Blockade.flaky)
 
 
 def cmd_slow(opts):
     """Make the network slow for some or all containers
     """
-    containers, select_all = _check_container_selections(opts)
-    config = load_config(opts)
-    b = get_blockade(config)
-    b.slow(containers, select_all)
+    __with_containers(opts, Blockade.slow)
 
 
 def cmd_fast(opts):
     """Restore network speed and reliability for some or all containers
     """
-    containers, select_all = _check_container_selections(opts)
-    config = load_config(opts)
-    b = get_blockade(config)
-    b.fast(containers, select_all)
+    __with_containers(opts, Blockade.fast)
 
 
 def cmd_duplicate(opts):
     """Introduce packet duplication into the network of some or all container
     """
-    containers, select_all = _check_container_selections(opts)
-    config = load_config(opts)
-    b = get_blockade(config)
-    b.duplicate(containers, select_all)
+    __with_containers(opts, Blockade.duplicate)
 
 
 def cmd_partition(opts):

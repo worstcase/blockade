@@ -70,6 +70,12 @@ class BlockadeState(object):
     def containers(self):
         return deepcopy(self._containers)
 
+    def container_id(self, name):
+        container = self._containers.get(name, None)
+        if not container is None:
+            return container.get('id', None)
+        return None
+
 
 class BlockadeStateFactory(object):
     # annoyed with how this ended up structured, and that I called it
@@ -113,7 +119,7 @@ class BlockadeStateFactory(object):
 
     @staticmethod
     def update(blockade_id, containers):
-        BlockadeStateFactory.__write(blockade_id, containers, initialize=False)
+        BlockadeStateFactory.__write(blockade_id, deepcopy(containers), initialize=False)
 
     @staticmethod
     def load():
