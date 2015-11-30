@@ -37,8 +37,8 @@ class Blockade(object):
         blockade_id = self.state_factory.get_blockade_id()
 
         for container in self.config.sorted_containers:
-            container_id = self._start_container(blockade_id, container)
-            device = self._init_container(blockade_id, container_id, container.name)
+            container_id = self._start_container(container)
+            device = self._init_container(container_id, container.name)
 
             # store device in state file
             container_state[container.name] = {'device': device, 'id': container_id}
@@ -54,7 +54,7 @@ class Blockade(object):
 
         return container_descriptions
 
-    def _init_container(self, blockade_id, container_id, container_name):
+    def _init_container(self, container_id, container_name):
         # next we have to determine the veth pair of host/container
         # that we formerly could pass in via 'lxc_conf' which is
         # deprecated since docker > 1.6
@@ -74,23 +74,28 @@ class Blockade(object):
 
         return device
 
-    def _start_container(self, blockade_id, container):
-        container_name = docker_container_name(blockade_id, container.name)
+    def _start_container(self, container):
         volumes = list(container.volumes.values()) or None
-        links = dict((docker_container_name(blockade_id, link), alias)
+        links = dict((link, alias)
                      for link, alias in container.links.items())
 
         # the docker api for port bindings is `internal:external`
         port_bindings = dict((v, k) for k, v in container.publish_ports.items())
 
-        host_config = docker.utils.create_host_config(binds=container.volumes,
+        host_config = docker.utils.create_host_config(
+            binds=container.volumes,
             port_bindings=port_bindings, links=links)
 
         # create container
         response = self.docker_client.create_container(
-            container.image, command=container.command, name=container_name,
-            ports=container.expose_ports, volumes=volumes, hostname=container.name,
-            environment=container.environment, host_config=host_config)
+            container.image,
+            command=container.command,
+            name=container.name,
+            ports=container.expose_ports,
+            volumes=volumes,
+            hostname=container.name,
+            environment=container.environment,
+            host_config=host_config)
 
         container_id = response['Id']
 
@@ -199,35 +204,30 @@ class Blockade(object):
     def _get_running_container(self, container_name, state=None):
         return self._get_running_containers((container_name,), state)[0]
 
-    def flaky(self, container_names, state):
+    def __with_running_container_device(self, container_names, state, func):
         containers = self._get_running_containers(container_names, state)
         for container in containers:
-            self.network.flaky(container.device)
+            device = container.device
+            func(device)
+
+    def flaky(self, container_names, state):
+        self.__with_running_container_device(container_names, state, self.network.flaky)
 
     def slow(self, container_names, state):
-        containers = self._get_running_containers(container_names, state)
-        for container in containers:
-            self.network.slow(container.device)
+        self.__with_running_container_device(container_names, state, self.network.slow)
 
     def duplicate(self, container_names, state):
-        containers = self._get_running_containers(container_names, state)
-        for container in containers:
-            self.network.duplicate(container.device)
+        self.__with_running_container_device(container_names, state, self.network.duplicate)
 
     def fast(self, container_names, state):
-        containers = self._get_running_containers(container_names, state)
-        for container in containers:
-            self.network.fast(container.device)
+        self.__with_running_container_device(container_names, state, self.network.fast)
 
     def stop(self, container_names, state):
-        containers = self._get_running_containers(container_names, state)
-        for container in containers:
-            self._stop_container(container)
-
-    def _stop_container(self, container):
         # TODO: configurable timeout
         kill_timeout = 3
-        self.docker_client.stop(container.container_id, timeout=kill_timeout)
+        containers = self._get_running_containers(container_names, state)
+        for container in containers:
+            self.docker_client.stop(container.container_id, timeout=kill_timeout)
 
     def start(self, container_names, state):
         for container in container_names:
@@ -237,7 +237,7 @@ class Blockade(object):
 
             # TODO: determine between create and/or start?
             self.docker_client.start(container_id)
-            device = self._init_container(state.blockade_id, container_id, container)
+            device = self._init_container(container_id, container)
 
             # update state
             updated_containers = state.containers
@@ -291,10 +291,6 @@ class ContainerState(object):
     UP = "UP"
     DOWN = "DOWN"
     MISSING = "MISSING"
-
-
-def docker_container_name(blockade_id, name):
-    return name
 
 
 def expand_partitions(containers, partitions):
