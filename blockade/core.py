@@ -38,21 +38,7 @@ class Blockade(object):
 
         for container in self.config.sorted_containers:
             container_id = self._start_container(blockade_id, container)
-
-            # next we have to determine the veth pair of host/container
-            # that we formerly could pass in via 'lxc_conf' which is
-            # deprecated since docker > 1.6
-            device = None
-            try:
-                device = self.network.get_container_device(self.docker_client, container_id, container)
-            except OSError as e:
-                self.docker_client.remove_container(container_id, force=True)
-                if e.errno in [errno.EACCES, errno.EPERM]:
-                    raise InsufficientPermissionsError("Failed to determine network device of container '%s' [%s]" % (container.name, container_id))
-                raise
-            except:
-                self.docker_client.remove_container(container_id, force=True)
-                raise
+            device = self._init_container(blockade_id, container_id, container.name)
 
             # store device in state file
             container_state[container.name] = {'device': device, 'id': container_id}
@@ -67,6 +53,26 @@ class Blockade(object):
             container_descriptions.append(description)
 
         return container_descriptions
+
+    def _init_container(self, blockade_id, container_id, container_name):
+        # next we have to determine the veth pair of host/container
+        # that we formerly could pass in via 'lxc_conf' which is
+        # deprecated since docker > 1.6
+        device = None
+        try:
+            device = self.network.get_container_device(self.docker_client, container_id, container_name)
+        except OSError as e:
+            self.docker_client.remove_container(container_id, force=True)
+
+            if e.errno in [errno.EACCES, errno.EPERM]:
+                msg = "Failed to determine network device of container '%s' [%s]" % (container_name, container_id)
+                raise InsufficientPermissionsError(msg)
+            raise
+        except:
+            self.docker_client.remove_container(container_id, force=True)
+            raise
+
+        return device
 
     def _start_container(self, blockade_id, container):
         container_name = docker_container_name(blockade_id, container.name)
@@ -159,6 +165,16 @@ class Blockade(object):
                     break
         return d
 
+    def _get_container_id_by_name(self, name):
+        containers = self.docker_client.containers(all=True)
+        for container in containers:
+            for cname in container['Names']:
+                # strip leading '/'
+                cname = cname[1:] if cname[0] == '/' else cname
+                if cname == name:
+                    return container['Id']
+        return None
+
     def _get_all_containers(self, state):
         containers = []
         ip_partitions = self.network.get_ip_partitions(state.blockade_id)
@@ -220,6 +236,35 @@ class Blockade(object):
         containers = self._get_running_containers(container_names)
         for container in containers:
             self.network.fast(container.device)
+
+    def stop(self, container_names=None, include_all=False):
+        if include_all:
+            container_names = None
+        containers = self._get_running_containers(container_names)
+        for container in containers:
+            self._stop_container(container)
+
+    def _stop_container(self, container):
+        # TODO: configurable timeout
+        kill_timeout = 3
+        self.docker_client.stop(container.container_id, timeout=kill_timeout)
+
+    def start(self, container_names=None, include_all=False):
+        # TODO: support '--all'
+        state = self.state_factory.load()
+        for container in container_names:
+            container_id = self._get_container_id_by_name(container)
+            if not container_id:
+                continue
+
+            # TODO: determine between create and/or start?
+            self.docker_client.start(container_id)
+            device = self._init_container(state.blockade_id, container_id, container)
+
+            # update state
+            updated_containers = state.containers
+            updated_containers[container] = {'id': container_id, 'device': device}
+            self.state_factory.update(state.blockade_id, updated_containers)
 
     def partition(self, partitions):
         state = self.state_factory.load()

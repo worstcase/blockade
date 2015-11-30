@@ -127,6 +127,24 @@ def cmd_status(opts):
     print_containers(containers, opts.json)
 
 
+def cmd_start(opts):
+    """Start some or all containers
+    """
+    containers, select_all = _check_container_selections(opts)
+    config = load_config(opts)
+    b = get_blockade(config)
+    b.start(containers, select_all)
+
+
+def cmd_stop(opts):
+    """Stop some or all containers
+    """
+    containers, select_all = _check_container_selections(opts)
+    config = load_config(opts)
+    b = get_blockade(config)
+    b.stop(containers, select_all)
+
+
 def cmd_flaky(opts):
     """Make the network flaky for some or all containers
     """
@@ -207,6 +225,8 @@ def cmd_logs(opts):
 _CMDS = (("up", cmd_up),
          ("destroy", cmd_destroy),
          ("status", cmd_status),
+         ("start", cmd_start),
+         ("stop", cmd_stop),
          ("logs", cmd_logs),
          ("flaky", cmd_flaky),
          ("slow", cmd_slow),
@@ -236,6 +256,8 @@ def setup_parser():
     _add_output_options(command_parsers["up"])
     _add_output_options(command_parsers["status"])
 
+    _add_container_selection_options(command_parsers["start"])
+    _add_container_selection_options(command_parsers["stop"])
     _add_container_selection_options(command_parsers["flaky"])
     _add_container_selection_options(command_parsers["slow"])
     _add_container_selection_options(command_parsers["fast"])

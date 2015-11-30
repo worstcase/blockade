@@ -80,16 +80,14 @@ class BlockadeStateFactory(object):
         return BLOCKADE_ID_PREFIX + uuid.uuid4().hex[:10]
 
     @staticmethod
-    def initialize(containers, blockade_id=None):
-        if blockade_id is None:
-            blockade_id = BlockadeStateFactory.get_blockade_id()
-        containers = deepcopy(containers)
-
+    def __write(blockade_id, containers, initialize=True):
         f = None
         path = BLOCKADE_STATE_FILE
         _assure_dir()
         try:
-            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+            flags = os.O_WRONLY | os.O_CREAT
+            if initialize:
+                flags |= os.O_EXCL
             with os.fdopen(os.open(path, flags), "w") as f:
                 yaml.safe_dump(_base_state(blockade_id, containers), f)
         except OSError as e:
@@ -102,7 +100,20 @@ class BlockadeStateFactory(object):
             # clean up our created file
             _state_delete()
             raise
+
+    @staticmethod
+    def initialize(containers, blockade_id=None):
+        if blockade_id is None:
+            blockade_id = BlockadeStateFactory.get_blockade_id()
+        containers = deepcopy(containers)
+
+        BlockadeStateFactory.__write(blockade_id, containers, initialize=True)
+
         return BlockadeState(blockade_id, containers)
+
+    @staticmethod
+    def update(blockade_id, containers):
+        BlockadeStateFactory.__write(blockade_id, containers, initialize=False)
 
     @staticmethod
     def load():

@@ -64,13 +64,13 @@ class BlockadeNetwork(object):
     def get_ip_partitions(self, blockade_id):
         return iptables_get_source_chains(blockade_id)
 
-    def get_container_device(self, docker_client, container_id, container):
+    def get_container_device(self, docker_client, container_id, container_name):
         cont_state = docker_client.inspect_container(container_id)
         sandbox_key = cont_state['NetworkSettings']['SandboxKey']
 
         # create a symlink to the container's network namespace
         netns_dir = '/var/run/netns'
-        container_ns = netns_dir+'/'+container.name
+        container_ns = netns_dir+'/'+container_name
 
         # create parent directory to be sure (this does not necessarily exist)
         if not os.path.isdir(netns_dir):
@@ -78,7 +78,7 @@ class BlockadeNetwork(object):
         os.symlink(sandbox_key, container_ns)
 
         try:
-            call = ['ip', 'netns', 'exec', container.name,
+            call = ['ip', 'netns', 'exec', container_name,
                     'ip', '-4', 'a', 's', 'eth0']
             res = subprocess.check_output(call)
             peer_idx = int(re.search('^([0-9]+):', res.decode()).group(1))
