@@ -15,9 +15,7 @@
 #
 
 import os
-import random
 import re
-import string
 import subprocess
 
 from .errors import BlockadeError
@@ -88,10 +86,13 @@ class BlockadeNetwork(object):
             host_idx = peer_idx + 1
             host_res = subprocess.check_output(['ip', 'link'])
 
-            host_device = re.search('^'+str(host_idx)+': ([^:@]+)[:@]', host_res.decode(), re.M).group(1)
+            host_rgx = '^%d: ([^:@]+)[:@]' % host_idx
+            host_device = re.search(host_rgx, host_res.decode(), re.M).group(1)
             return host_device
         except subprocess.CalledProcessError:
-            raise BlockadeError("Problem determining host network device for container '%s'" % (container_id))
+            raise BlockadeError(
+                "Problem determining host network device for container '%s'" %
+                (container_id))
         finally:
             os.remove(container_ns)
 
