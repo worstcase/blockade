@@ -154,6 +154,12 @@ def cmd_stop(opts):
     __with_containers(opts, Blockade.stop)
 
 
+def cmd_restart(opts):
+    """Restart some or all containers
+    """
+    __with_containers(opts, Blockade.restart)
+
+
 def cmd_flaky(opts):
     """Make the network flaky for some or all containers
     """
@@ -223,6 +229,7 @@ _CMDS = (("up", cmd_up),
          ("destroy", cmd_destroy),
          ("status", cmd_status),
          ("start", cmd_start),
+         ("restart", cmd_restart),
          ("stop", cmd_stop),
          ("logs", cmd_logs),
          ("flaky", cmd_flaky),
@@ -255,6 +262,7 @@ def setup_parser():
 
     _add_container_selection_options(command_parsers["start"])
     _add_container_selection_options(command_parsers["stop"])
+    _add_container_selection_options(command_parsers["restart"])
     _add_container_selection_options(command_parsers["flaky"])
     _add_container_selection_options(command_parsers["slow"])
     _add_container_selection_options(command_parsers["fast"])

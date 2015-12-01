@@ -222,27 +222,39 @@ class Blockade(object):
     def fast(self, container_names, state):
         self.__with_running_container_device(container_names, state, self.network.fast)
 
-    def stop(self, container_names, state):
-        # TODO: configurable timeout
-        kill_timeout = 3
+    def restart(self, container_names, state):
         containers = self._get_running_containers(container_names, state)
         for container in containers:
-            self.docker_client.stop(container.container_id, timeout=kill_timeout)
+            self._stop(container)
+            self._start(container.name, state)
+
+    def stop(self, container_names, state):
+        containers = self._get_running_containers(container_names, state)
+        for container in containers:
+            self._stop(container)
+
+    def _stop(self, container):
+        # TODO: configurable timeout
+        kill_timeout = 3
+        self.docker_client.stop(container.container_id, timeout=kill_timeout)
 
     def start(self, container_names, state):
         for container in container_names:
-            container_id = state.container_id(container)
-            if container_id is None:
-                continue
+            self._start(container, state)
 
-            # TODO: determine between create and/or start?
-            self.docker_client.start(container_id)
-            device = self._init_container(container_id, container)
+    def _start(self, container, state):
+        container_id = state.container_id(container)
+        if container_id is None:
+            return
 
-            # update state
-            updated_containers = state.containers
-            updated_containers[container] = {'id': container_id, 'device': device}
-            self.state_factory.update(state.blockade_id, updated_containers)
+        # TODO: determine between create and/or start?
+        self.docker_client.start(container_id)
+        device = self._init_container(container_id, container)
+
+        # update state
+        updated_containers = state.containers
+        updated_containers[container] = {'id': container_id, 'device': device}
+        self.state_factory.update(state.blockade_id, updated_containers)
 
     def partition(self, partitions):
         state = self.state_factory.load()
