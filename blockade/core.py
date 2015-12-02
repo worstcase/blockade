@@ -22,7 +22,7 @@ import time
 
 from .errors import BlockadeError, InsufficientPermissionsError
 from .net import NetworkState, BlockadeNetwork
-from .state import BlockadeStateFactory
+from .state import BlockadeState, BlockadeStateFactory
 
 
 class Blockade(object):
@@ -232,7 +232,7 @@ class Blockade(object):
         containers = self._get_running_containers(container_names, state)
         for container in containers:
             self._stop(container)
-            self._start(container.name, state)
+            state = self._start(container.name, state)
 
     def stop(self, container_names, state):
         containers = self._get_running_containers(container_names, state)
@@ -246,7 +246,7 @@ class Blockade(object):
 
     def start(self, container_names, state):
         for container in container_names:
-            self._start(container, state)
+            state = self._start(container, state)
 
     def _start(self, container, state):
         container_id = state.container_id(container)
@@ -261,6 +261,9 @@ class Blockade(object):
         updated_containers = state.containers
         updated_containers[container] = {'id': container_id, 'device': device}
         self.state_factory.update(state.blockade_id, updated_containers)
+
+        # make sure further calls are operating on the updated state
+        return BlockadeState(state.blockade_id, updated_containers)
 
     def partition(self, partitions):
         state = self.state_factory.load()
