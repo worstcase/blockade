@@ -24,20 +24,27 @@ class BlockadeContainerConfig(object):
     def from_dict(name, d):
         return BlockadeContainerConfig(
             name, d['image'],
-            command=d.get('command'), links=d.get('links'),
-            lxc_conf=d.get('lxc_conf'), volumes=d.get('volumes'),
-            publish_ports=d.get('ports'), expose_ports=d.get('expose'),
-            environment=d.get('environment'))
+            command=d.get('command'),
+            links=d.get('links'),
+            volumes=d.get('volumes'),
+            publish_ports=d.get('ports'),
+            expose_ports=d.get('expose'),
+            environment=d.get('environment'),
+            start_delay=d.get('start_delay', 0))
 
-    def __init__(self, name, image, command=None, links=None, lxc_conf=None,
-                 volumes=None, publish_ports=None, expose_ports=None, environment=None):
+    def __init__(self, name, image, command=None, links=None, volumes=None,
+                 publish_ports=None, expose_ports=None, environment=None, start_delay=0):
         self.name = name
         self.image = image
         self.command = command
         self.links = _dictify(links, "links")
-        self.lxc_conf = dict(lxc_conf or {})
         self.volumes = _dictify(volumes, "volumes")
         self.publish_ports = _dictify(publish_ports, "ports")
+        self.start_delay = start_delay
+
+        if not isinstance(self.start_delay, (int, long)):
+            raise BlockadeConfigError("'start_delay' has to be an integer")
+
         # All published ports must also be exposed
         self.expose_ports = list(set(
             int(port) for port in
@@ -64,7 +71,6 @@ class BlockadeConfig(object):
                     container = BlockadeContainerConfig.from_dict(
                         name, container_dict)
                     parsed_containers[name] = container
-
                 except Exception as e:
                     raise BlockadeConfigError(
                         "Container '%s' config problem: %s" % (name, e))
