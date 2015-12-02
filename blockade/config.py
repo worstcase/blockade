@@ -20,33 +20,56 @@ from .errors import BlockadeConfigError
 
 
 class BlockadeContainerConfig(object):
+    '''Class that encapsulates the configuration of one container
+    '''
     @staticmethod
-    def from_dict(name, d):
-        return BlockadeContainerConfig(
-            name, d['image'],
-            command=d.get('command'),
-            links=d.get('links'),
-            volumes=d.get('volumes'),
-            publish_ports=d.get('ports'),
-            expose_ports=d.get('expose'),
-            environment=d.get('environment'),
-            start_delay=d.get('start_delay', 0))
+    def from_dict(name, values):
+        '''
+        Convert a dictionary of configuration values
+        into a sequence of BlockadeContainerConfig instances
+        '''
+
+        # determine the number of instances of this container
+        count = 1
+        count_value = values.get('count', 1)
+        if isinstance(count_value, (int, long)):
+            count = max(count_value, 1)
+
+        def get_instance(n):
+            return BlockadeContainerConfig(
+                n,
+                values['image'],
+                command=values.get('command'),
+                links=values.get('links'),
+                volumes=values.get('volumes'),
+                publish_ports=values.get('ports'),
+                expose_ports=values.get('expose'),
+                environment=values.get('environment'),
+                start_delay=values.get('start_delay', 0))
+
+        if count == 1:
+            yield get_instance(name)
+        else:
+            for idx in xrange(1, count+1):
+                # TODO: configurable name/index format
+                yield get_instance('%s_%d' % (name, idx))
 
     def __init__(self, name, image, command=None, links=None, volumes=None,
                  publish_ports=None, expose_ports=None, environment=None, start_delay=0):
         self.name = name
         self.image = image
         self.command = command
-        self.links = _dictify(links, "links")
-        self.volumes = _dictify(volumes, "volumes")
-        self.publish_ports = _dictify(publish_ports, "ports")
+        self.links = _dictify(links, 'links')
+        self.volumes = _dictify(volumes, 'volumes')
+        self.publish_ports = _dictify(publish_ports, 'ports')
 
+        # check start_delay format
         if not isinstance(start_delay, (int, long)):
             raise BlockadeConfigError("'start_delay' has to be an integer")
 
         self.start_delay = max(start_delay, 0)
 
-        # All published ports must also be exposed
+        # all published ports must also be exposed
         self.expose_ports = list(set(
             int(port) for port in
             (expose_ports or []) + list(self.publish_ports.values())
@@ -63,36 +86,40 @@ _DEFAULT_NETWORK_CONFIG = {
 
 class BlockadeConfig(object):
     @staticmethod
-    def from_dict(d):
+    def from_dict(values):
+        '''
+        Instantiate a BlockadeConfig instance based on
+        a given dictionary of configuration values
+        '''
         try:
-            containers = d['containers']
+            containers = values['containers']
             parsed_containers = {}
             for name, container_dict in containers.items():
                 try:
-                    container = BlockadeContainerConfig.from_dict(
-                        name, container_dict)
-                    parsed_containers[name] = container
-                except Exception as e:
+                    # one config entry might result in many container
+                    # instances (indicated by the 'count' config value)
+                    for cnt in BlockadeContainerConfig.from_dict(name, container_dict):
+                        parsed_containers[cnt.name] = cnt
+                except Exception as err:
                     raise BlockadeConfigError(
-                        "Container '%s' config problem: %s" % (name, e))
+                        "Container '%s' config problem: %s" % (name, err))
 
-            network = d.get('network')
+            network = values.get('network')
             if network:
                 defaults = _DEFAULT_NETWORK_CONFIG.copy()
                 defaults.update(network)
                 network = defaults
-
             else:
                 network = _DEFAULT_NETWORK_CONFIG.copy()
 
             return BlockadeConfig(parsed_containers, network=network)
 
-        except KeyError as e:
-            raise BlockadeConfigError("Config missing value: " + str(e))
+        except KeyError as err:
+            raise BlockadeConfigError("Config missing value: " + str(err))
 
-        except Exception as e:
+        except Exception as err:
             # TODO log this to some debug stream?
-            raise BlockadeConfigError("Failed to load config: " + str(e))
+            raise BlockadeConfigError("Failed to load config: " + str(err))
 
     def __init__(self, containers, network=None):
         self.containers = containers
@@ -100,7 +127,7 @@ class BlockadeConfig(object):
         self.network = network or {}
 
 
-def _dictify(data, name="input"):
+def _dictify(data, name='input'):
     if data:
         if isinstance(data, collections.Sequence):
             return dict((str(v), str(v)) for v in data)
