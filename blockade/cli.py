@@ -106,7 +106,7 @@ def cmd_up(opts):
     """
     config = load_config(opts)
     b = get_blockade(config)
-    containers = b.create()
+    containers = b.create(verbose=True)
     print_containers(containers, opts.json)
 
 

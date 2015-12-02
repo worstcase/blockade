@@ -19,6 +19,7 @@ from copy import deepcopy
 import docker
 import errno
 import time
+import sys
 
 from .errors import BlockadeError, InsufficientPermissionsError
 from .net import NetworkState, BlockadeNetwork
@@ -33,21 +34,36 @@ class Blockade(object):
         self.network = network or BlockadeNetwork(config)
         self.docker_client = docker_client or docker.Client()
 
-    def create(self):
+    def create(self, verbose=False):
         container_state = {}
         blockade_id = self.state_factory.get_blockade_id()
+        num_containers = len(self.config.sorted_containers)
 
-        for container in self.config.sorted_containers:
+        for idx, container in enumerate(self.config.sorted_containers):
+            name = container.name
+
+            if verbose:
+                sys.stdout.write("\r[%d/%d] Starting '%s' " % (idx+1, num_containers, name))
+                sys.stdout.flush()
+
             # in case a startup delay is configured
             # we have to wait in here
             if container.start_delay > 0:
+                if verbose:
+                    sys.stdout.write('(delaying for %d seconds)' % (container.start_delay))
+                    sys.stdout.flush()
                 time.sleep(container.start_delay)
 
             container_id = self._start_container(container)
-            device = self._init_container(container_id, container.name)
+            device = self._init_container(container_id, name)
 
             # store device in state file
-            container_state[container.name] = {'device': device, 'id': container_id}
+            container_state[name] = {'device': device, 'id': container_id}
+
+        # clear progress line
+        if verbose:
+            sys.stdout.write('\r')
+            sys.stdout.flush()
 
         # persist container states
         state = self.state_factory.initialize(container_state, blockade_id)
