@@ -18,6 +18,7 @@ from copy import deepcopy
 
 import docker
 import errno
+import time
 
 from .errors import BlockadeError, InsufficientPermissionsError
 from .net import NetworkState, BlockadeNetwork
@@ -37,6 +38,11 @@ class Blockade(object):
         blockade_id = self.state_factory.get_blockade_id()
 
         for container in self.config.sorted_containers:
+            # in case a startup delay is configured
+            # we have to wait in here
+            if container.start_delay > 0:
+                time.sleep(container.start_delay)
+
             container_id = self._start_container(container)
             device = self._init_container(container_id, container.name)
 

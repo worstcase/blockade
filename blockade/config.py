@@ -40,10 +40,11 @@ class BlockadeContainerConfig(object):
         self.links = _dictify(links, "links")
         self.volumes = _dictify(volumes, "volumes")
         self.publish_ports = _dictify(publish_ports, "ports")
-        self.start_delay = start_delay
 
-        if not isinstance(self.start_delay, (int, long)):
+        if not isinstance(start_delay, (int, long)):
             raise BlockadeConfigError("'start_delay' has to be an integer")
+
+        self.start_delay = max(start_delay, 0)
 
         # All published ports must also be exposed
         self.expose_ports = list(set(
@@ -130,6 +131,8 @@ def _resolve(d):
     all_keys = frozenset(d.keys())
     result = []
     resolved_keys = set()
+
+    # TODO: take start delays into account as well
 
     while d:
         resolved_this_round = set()
