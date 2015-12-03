@@ -15,6 +15,8 @@
 #
 
 import collections
+import os
+import re
 
 from .errors import BlockadeConfigError
 
@@ -22,6 +24,7 @@ from .errors import BlockadeConfigError
 class BlockadeContainerConfig(object):
     '''Class that encapsulates the configuration of one container
     '''
+
     @staticmethod
     def from_dict(name, values):
         '''
@@ -60,7 +63,7 @@ class BlockadeContainerConfig(object):
         self.image = image
         self.command = command
         self.links = _dictify(links, 'links')
-        self.volumes = _dictify(volumes, 'volumes')
+        self.volumes = _dictify(volumes, 'volumes', _populate_env)
         self.publish_ports = _dictify(publish_ports, 'ports')
 
         # check start_delay format
@@ -74,7 +77,7 @@ class BlockadeContainerConfig(object):
             int(port) for port in
             (expose_ports or []) + list(self.publish_ports.values())
         ))
-        self.environment = dict(environment or {})
+        self.environment = _dictify(environment, _populate_env)
 
 
 _DEFAULT_NETWORK_CONFIG = {
@@ -127,12 +130,33 @@ class BlockadeConfig(object):
         self.network = network or {}
 
 
-def _dictify(data, name='input'):
+def _populate_env(value):
+    cwd = os.getcwd()
+    # in here we may place some 'special' placeholders
+    # that get replaced by blockade itself
+    builtins = {
+        # usually $PWD is set by the shell anyway but
+        # blockade is often used in terms of sudo that sometimes
+        # removes various environment variables
+        'PWD': cwd,
+        'CWD': cwd
+        }
+
+    def get_env_value(match):
+        key = match.group(1)
+        env = os.environ.get(key) or builtins.get(key)
+        if not env:
+            raise BlockadeConfigError("there is no environment variable '$%s'" % (key))
+        return env
+    return re.sub(r"\${([a-zA-Z][-_a-zA-Z0-9]*)}", get_env_value, value)
+
+
+def _dictify(data, name='input', modifier=lambda x: x):
     if data:
         if isinstance(data, collections.Sequence):
-            return dict((str(v), str(v)) for v in data)
+            return dict((modifier(str(v)), modifier(str(v))) for v in data)
         elif isinstance(data, collections.Mapping):
-            return dict((str(k), str(v or k)) for k, v in list(data.items()))
+            return dict((modifier(str(k)), modifier(str(v or k))) for k, v in list(data.items()))
         else:
             raise BlockadeConfigError("invalid %s: need list or map"
                                       % (name,))
