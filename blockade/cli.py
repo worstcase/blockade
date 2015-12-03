@@ -14,11 +14,12 @@
 # limitations under the License.
 #
 
-import sys
 import argparse
-import traceback
 import errno
 import json
+import random
+import sys
+import traceback
 
 import yaml
 from clint.textui import puts, puts_err, colored, columns
@@ -209,6 +210,29 @@ def cmd_partition(opts):
     b.partition(partitions)
 
 
+def cmd_random_partitions(opts):
+    config = load_config(opts)
+    b = get_blockade(config)
+
+    partitions = []
+    containers = [cnt for cnt in config.containers]
+    num_containers = len(containers)
+    num_partitions = random.randint(0, num_containers-1)
+
+    # no partition at all -> join
+    if num_partitions == 0:
+        b.partition([containers])
+    else:
+        for part in xrange(num_partitions, -1, -1):
+            partition = []
+            partition_size = random.randint(1, max(1, num_containers-num_partitions-1)) if part > 0 else len(containers)
+            for cnt in xrange(partition_size-1, -1, -1):
+                partition.append(containers.pop(random.randint(0, cnt)))
+            partitions.append(partition)
+
+        b.partition(partitions)
+
+
 def cmd_join(opts):
     """Restore full networking between containers
     """
@@ -237,6 +261,7 @@ _CMDS = (("up", cmd_up),
          ("duplicate", cmd_duplicate),
          ("fast", cmd_fast),
          ("partition", cmd_partition),
+         ("random", cmd_random_partitions),
          ("join", cmd_join))
 
 
@@ -259,6 +284,7 @@ def setup_parser():
     # add additional parameters to some commands
     _add_output_options(command_parsers["up"])
     _add_output_options(command_parsers["status"])
+    _add_output_options(command_parsers["random"])
 
     _add_container_selection_options(command_parsers["start"])
     _add_container_selection_options(command_parsers["stop"])
