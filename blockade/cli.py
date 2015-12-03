@@ -261,7 +261,7 @@ _CMDS = (("up", cmd_up),
          ("duplicate", cmd_duplicate),
          ("fast", cmd_fast),
          ("partition", cmd_partition),
-         ("random", cmd_random_partitions),
+         ("random-partition", cmd_random_partitions),
          ("join", cmd_join))
 
 
@@ -284,7 +284,7 @@ def setup_parser():
     # add additional parameters to some commands
     _add_output_options(command_parsers["up"])
     _add_output_options(command_parsers["status"])
-    _add_output_options(command_parsers["random"])
+    _add_output_options(command_parsers["random-partition"])
 
     _add_container_selection_options(command_parsers["start"])
     _add_container_selection_options(command_parsers["stop"])
