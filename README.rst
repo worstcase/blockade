@@ -159,7 +159,7 @@ Remove all partitions between containers.
 
 ``blockade random-partition``
 
-Introduce a random partition among the configured nodes.
+Introduce one or many random partitions among the configured nodes.
 
 
 License
@@ -179,7 +179,9 @@ You can rerun them with ``vagrant provision``, or SSH into the VM and run
 them yourself, from ``/vagrant``.
 
 Blockade documentation is built with Sphinx and is found under ``docs/``.
-To build::
+To build:
+
+.. code-block:: bash
 
     $ pip install -r requirements_docs.txt
     $ cd docs/
