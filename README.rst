@@ -53,29 +53,36 @@ Configuration
 
 Blockade expects a ``blockade.yaml`` file in the current directory which
 describes the containers to launch, how they are linked, and various
-parameters for the blockade modes. Example::
+parameters for the blockade modes. Example:
+
+.. code-block:: yaml
 
     containers:
       c1:
         image: my_docker_image
         command: /bin/myapp
-        volumes: {"/opt/myapp": "/opt/myapp_host"}
+        volumes:
+          "/opt/myapp": "/opt/myapp_host"
         expose: [80]
-        environment: {"IS_MASTER": 1}
-        ports: {81: 80}
+        environment:
+          "IS_MASTER": 1
+        ports:
+          81: 80
 
       c2:
         image: my_docker_image
         command: /bin/myapp
         volumes: ["/data"]
         expose: [80]
-        links: {c1: master}
+        links:
+          c1: master
 
       c3:
         image: my_docker_image
         command: /bin/myapp
         expose: [80]
-        links: {c1: master}
+        links:
+          c1: master
 
     network:
       flaky: 30%
@@ -149,6 +156,10 @@ partition command replaces any previous partition or block rules.
 ``blockade join``
 
 Remove all partitions between containers.
+
+``blockade random-partition``
+
+Introduce a random partition among the configured nodes.
 
 
 License
