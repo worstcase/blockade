@@ -224,8 +224,12 @@ def cmd_random_partitions(opts):
         b.partition([containers])
     else:
         for part in xrange(num_partitions, -1, -1):
+            remaining_containers = len(containers)
             partition = []
-            partition_size = random.randint(1, max(1, num_containers-num_partitions-1)) if part > 0 else len(containers)
+            max_partition_size = max(1, min(num_containers-num_partitions-1, remaining_containers - part + 1))
+            if remaining_containers < 1:
+                break
+            partition_size = random.randint(1, max_partition_size) if part > 0 else remaining_containers
             for cnt in xrange(partition_size-1, -1, -1):
                 partition.append(containers.pop(random.randint(0, cnt)))
             partitions.append(partition)
