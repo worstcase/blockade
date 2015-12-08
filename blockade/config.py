@@ -63,7 +63,7 @@ class BlockadeContainerConfig(object):
         self.image = image
         self.command = command
         self.links = _dictify(links, 'links')
-        self.volumes = _dictify(volumes, 'volumes', _populate_env)
+        self.volumes = _dictify(volumes, 'volumes', lambda x: os.path.abspath(_populate_env(x)))
         self.publish_ports = _dictify(publish_ports, 'ports')
 
         # check start_delay format
@@ -77,7 +77,7 @@ class BlockadeContainerConfig(object):
             int(port) for port in
             (expose_ports or []) + list(self.publish_ports.values())
         ))
-        self.environment = _dictify(environment, _populate_env)
+        self.environment = _dictify(environment, _populate_env, _populate_env)
 
 
 _DEFAULT_NETWORK_CONFIG = {
@@ -151,12 +151,12 @@ def _populate_env(value):
     return re.sub(r"\${([a-zA-Z][-_a-zA-Z0-9]*)}", get_env_value, value)
 
 
-def _dictify(data, name='input', modifier=lambda x: x):
+def _dictify(data, name='input', key_mod=lambda x: x, value_mod=lambda x: x):
     if data:
         if isinstance(data, collections.Sequence):
-            return dict((modifier(str(v)), modifier(str(v))) for v in data)
+            return dict((key_mod(str(v)), value_mod(str(v))) for v in data)
         elif isinstance(data, collections.Mapping):
-            return dict((modifier(str(k)), modifier(str(v or k))) for k, v in list(data.items()))
+            return dict((key_mod(str(k)), value_mod(str(v or k))) for k, v in list(data.items()))
         else:
             raise BlockadeConfigError("invalid %s: need list or map"
                                       % (name,))

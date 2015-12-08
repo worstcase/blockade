@@ -31,10 +31,10 @@ from .config import BlockadeConfig
 from .net import BlockadeNetwork
 
 
-def load_config(opts):
+def load_config(config_file):
     error = None
-    paths = (opts.config,) if opts.config else ("blockade.yaml",
-                                                "blockade.yml")
+    paths = [config_file] if config_file else ["blockade.yaml",
+                                               "blockade.yml"]
     try:
         for path in paths:
             try:
@@ -105,7 +105,7 @@ def _check_container_selections(opts):
 def cmd_up(opts):
     """Start the containers and link them together
     """
-    config = load_config(opts)
+    config = load_config(opts.config)
     b = get_blockade(config)
     containers = b.create(verbose=True)
     print_containers(containers, opts.json)
@@ -114,7 +114,7 @@ def cmd_up(opts):
 def cmd_destroy(opts):
     """Destroy all containers and restore networks
     """
-    config = load_config(opts)
+    config = load_config(opts.config)
     b = get_blockade(config)
     b.destroy()
 
@@ -122,7 +122,7 @@ def cmd_destroy(opts):
 def cmd_status(opts):
     """Print status of containers and networks
     """
-    config = load_config(opts)
+    config = load_config(opts.config)
     b = get_blockade(config)
     containers = b.status()
     print_containers(containers, opts.json)
@@ -130,7 +130,7 @@ def cmd_status(opts):
 
 def __with_containers(opts, func):
     containers, select_all = _check_container_selections(opts)
-    config = load_config(opts)
+    config = load_config(opts.config)
     b = get_blockade(config)
     state = b.state_factory.load()
 
@@ -205,13 +205,13 @@ def cmd_partition(opts):
             if name:
                 names.append(name)
         partitions.append(names)
-    config = load_config(opts)
+    config = load_config(opts.config)
     b = get_blockade(config)
     b.partition(partitions)
 
 
 def cmd_random_partitions(opts):
-    config = load_config(opts)
+    config = load_config(opts.config)
     b = get_blockade(config)
 
     partitions = []
@@ -240,7 +240,7 @@ def cmd_random_partitions(opts):
 def cmd_join(opts):
     """Restore full networking between containers
     """
-    config = load_config(opts)
+    config = load_config(opts.config)
     b = get_blockade(config)
     b.join()
 
@@ -248,7 +248,7 @@ def cmd_join(opts):
 def cmd_logs(opts):
     """Fetch the logs of a container
     """
-    config = load_config(opts)
+    config = load_config(opts.config)
     b = get_blockade(config)
     puts(b.logs(opts.container).decode(encoding='UTF-8'))
 
