@@ -16,10 +16,12 @@
 
 from copy import deepcopy
 
-import docker
 import errno
-import time
+import random
 import sys
+import time
+
+import docker
 
 from .errors import BlockadeError, InsufficientPermissionsError
 from .net import NetworkState, BlockadeNetwork
@@ -281,8 +283,30 @@ class Blockade(object):
         # make sure further calls are operating on the updated state
         return BlockadeState(state.blockade_id, updated_containers)
 
-    def partition(self, partitions):
+    def random_partition(self):
         state = self.state_factory.load()
+        containers = [c.name for c in self._get_running_containers(state=state)]
+        num_containers = len(containers)
+        num_partitions = random.randint(1, num_containers)
+
+        # no partition at all -> join
+        if num_partitions <= 1:
+            self.join()
+        else:
+            pick = lambda: containers.pop(random.randint(0, len(containers)-1))
+
+            # pick at least one container for each partition
+            partitions = [[pick()] for _ in xrange(num_partitions)]
+
+            # distribute the rest of the containers among the partitions
+            for _ in xrange(len(containers)):
+                random_partition = random.randint(0, num_partitions-1)
+                partitions[random_partition].append(pick())
+
+            self.partition(partitions, state)
+
+    def partition(self, partitions, state=None):
+        state = state or self.state_factory.load()
         containers = self._get_running_containers(state=state)
         container_dict = dict((c.name, c) for c in containers)
         partitions = expand_partitions(list(container_dict.keys()), partitions)

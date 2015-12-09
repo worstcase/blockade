@@ -17,7 +17,6 @@
 import argparse
 import errno
 import json
-import random
 import sys
 import traceback
 
@@ -210,31 +209,12 @@ def cmd_partition(opts):
     b.partition(partitions)
 
 
-def cmd_random_partitions(opts):
+def cmd_random_partition(opts):
+    """Create zero or more random partitions among the running containers
+    """
     config = load_config(opts.config)
     b = get_blockade(config)
-
-    partitions = []
-    containers = [cnt for cnt in config.containers]
-    num_containers = len(containers)
-    num_partitions = random.randint(0, num_containers-1)
-
-    # no partition at all -> join
-    if num_partitions == 0:
-        b.partition([containers])
-    else:
-        for part in xrange(num_partitions, -1, -1):
-            remaining_containers = len(containers)
-            partition = []
-            max_partition_size = max(1, min(num_containers-num_partitions-1, remaining_containers - part + 1))
-            if remaining_containers < 1:
-                break
-            partition_size = random.randint(1, max_partition_size) if part > 0 else remaining_containers
-            for cnt in xrange(partition_size-1, -1, -1):
-                partition.append(containers.pop(random.randint(0, cnt)))
-            partitions.append(partition)
-
-        b.partition(partitions)
+    b.random_partition()
 
 
 def cmd_join(opts):
@@ -265,7 +245,7 @@ _CMDS = (("up", cmd_up),
          ("duplicate", cmd_duplicate),
          ("fast", cmd_fast),
          ("partition", cmd_partition),
-         ("random-partition", cmd_random_partitions),
+         ("random-partition", cmd_random_partition),
          ("join", cmd_join))
 
 
