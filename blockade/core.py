@@ -169,6 +169,11 @@ class Blockade(object):
             extras['network_state'] = NetworkState.UNKNOWN
             extras['device'] = None
 
+        # lookup 'neutral' in config
+        # TODO: this might go into the state as well..?
+        cfg_container = self.config.containers.get(name)
+        extras['neutral'] = cfg_container.neutral if cfg_container else False
+
         return Container(name, container_id, container_state, **extras)
 
     def destroy(self, force=False):
@@ -311,7 +316,7 @@ class Blockade(object):
         state = state or self.state_factory.load()
         containers = self._get_running_containers(state=state)
         container_dict = dict((c.name, c) for c in containers)
-        partitions = expand_partitions(list(container_dict.keys()), partitions)
+        partitions = expand_partitions(containers, partitions)
 
         container_partitions = []
         for partition in partitions:
@@ -360,15 +365,21 @@ def expand_partitions(containers, partitions):
     """Validate the partitions of containers. If there are any containers
     not in any partition, place them in an new partition.
     """
-    all_names = frozenset(containers)
+
+    # filter out neutral containers that don't belong
+    # to any partition at all
+    all_names = frozenset(c.name for c in containers if not c.neutral)
+    neutral_names = frozenset(c.name for c in containers if c.neutral)
     partitions = [frozenset(p) for p in partitions]
 
     unknown = set()
     overlap = set()
+    neutral = set()
     union = set()
 
     for index, partition in enumerate(partitions):
-        unknown.update(partition - all_names)
+        unknown.update(partition - all_names - neutral_names)
+        neutral.update(partition - all_names)
         union.update(partition)
 
         for other in partitions[index+1:]:
@@ -377,6 +388,10 @@ def expand_partitions(containers, partitions):
     if unknown:
         raise BlockadeError("Partitions have unknown containers: %s" %
                             list(unknown))
+
+    if neutral:
+        raise BlockadeError("Partitions contain neutral containers: %s" %
+                            list(neutral))
 
     if overlap:
         raise BlockadeError("Partitions have overlapping containers: %s" %

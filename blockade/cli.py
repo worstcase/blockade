@@ -68,15 +68,19 @@ def print_containers(containers, to_json=False):
                                   ["IP",                 15],
                                   ["NETWORK",            10],
                                   ["PARTITION",          10])))
+
+        def partition_label(c):
+            if c.neutral: return "N"
+            elif c.partition: return str(c.partition)
+            else: return ""
+
         for container in containers:
-            partition = container.partition
-            partition = "" if partition is None else str(partition)
             puts(columns([container.name,                15],
                          [container.container_id[:12],   15],
                          [container.state,                7],
                          [container.ip_address or "",    15],
                          [container.network_state,       10],
-                         [partition,                     10]))
+                         [partition_label(container),    10]))
 
 
 def _add_output_options(parser):

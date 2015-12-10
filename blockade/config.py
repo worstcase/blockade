@@ -48,7 +48,8 @@ class BlockadeContainerConfig(object):
                 publish_ports=values.get('ports'),
                 expose_ports=values.get('expose'),
                 environment=values.get('environment'),
-                start_delay=values.get('start_delay', 0))
+                start_delay=values.get('start_delay', 0),
+                neutral=values.get('neutral', False))
 
         if count == 1:
             yield get_instance(name)
@@ -58,13 +59,14 @@ class BlockadeContainerConfig(object):
                 yield get_instance('%s_%d' % (name, idx))
 
     def __init__(self, name, image, command=None, links=None, volumes=None,
-                 publish_ports=None, expose_ports=None, environment=None, start_delay=0):
+                 publish_ports=None, expose_ports=None, environment=None, start_delay=0, neutral=False):
         self.name = name
         self.image = image
         self.command = command
         self.links = _dictify(links, 'links')
         self.volumes = _dictify(volumes, 'volumes', lambda x: os.path.abspath(_populate_env(x)))
         self.publish_ports = _dictify(publish_ports, 'ports')
+        self.neutral = neutral
 
         # check start_delay format
         if not isinstance(start_delay, (int, long)):
