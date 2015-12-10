@@ -292,6 +292,7 @@ class Blockade(object):
         # no partition at all -> join
         if num_partitions <= 1:
             self.join()
+            return []
         else:
             pick = lambda: containers.pop(random.randint(0, len(containers)-1))
 
@@ -304,6 +305,7 @@ class Blockade(object):
                 partitions[random_partition].append(pick())
 
             self.partition(partitions, state)
+            return partitions
 
     def partition(self, partitions, state=None):
         state = state or self.state_factory.load()
