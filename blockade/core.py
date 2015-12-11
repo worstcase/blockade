@@ -290,7 +290,8 @@ class Blockade(object):
 
     def random_partition(self):
         state = self.state_factory.load()
-        containers = [c.name for c in self._get_running_containers(state=state)]
+        containers = [c.name for c in self._get_running_containers(state=state)
+                      if not c.neutral]
         num_containers = len(containers)
         num_partitions = random.randint(1, num_containers)
 
