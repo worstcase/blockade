@@ -28,6 +28,10 @@ from .net import NetworkState, BlockadeNetwork
 from .state import BlockadeState, BlockadeStateFactory
 
 
+# TODO: configurable timeout
+DEFAULT_KILL_TIMEOUT = 3
+
+
 class Blockade(object):
     def __init__(self, config, state_factory=None, network=None,
                  docker_client=None):
@@ -85,10 +89,10 @@ class Blockade(object):
         device = None
         try:
             device = self.network.get_container_device(self.docker_client, container_id, container_name)
-        except OSError as e:
+        except OSError as err:
             self.docker_client.remove_container(container_id, force=True)
 
-            if e.errno in (errno.EACCES, errno.EPERM):
+            if err.errno in (errno.EACCES, errno.EPERM):
                 msg = "Failed to determine network device of container '%s' [%s]" % (container_name, container_id)
                 raise InsufficientPermissionsError(msg)
             raise
@@ -190,23 +194,24 @@ class Blockade(object):
         self.state_factory.destroy()
 
     def _get_docker_containers(self, state):
-        d = {}
+        containers = {}
         for container in self.docker_client.containers(all=True):
             for name in container['Names']:
                 # strip leading '/'
                 name = name[1:] if name[0] == '/' else name
                 if name in state.containers:
-                    d[name] = container
+                    containers[name] = container
                     break
-        return d
+        return containers
 
     def _get_all_containers(self, state):
         containers = []
         ip_partitions = self.network.get_ip_partitions(state.blockade_id)
         docker_containers = self._get_docker_containers(state)
-        for name, container in docker_containers.items():
-            containers.append(self._get_container_description(state, name,
-                              ip_partitions=ip_partitions))
+
+        for name in docker_containers.keys():
+            container = self._get_container_description(state, name, ip_partitions=ip_partitions)
+            containers.append(container)
         return containers
 
     def status(self):
@@ -264,9 +269,7 @@ class Blockade(object):
             self._stop(container)
 
     def _stop(self, container):
-        # TODO: configurable timeout
-        kill_timeout = 3
-        self.docker_client.stop(container.container_id, timeout=kill_timeout)
+        self.docker_client.stop(container.container_id, timeout=DEFAULT_KILL_TIMEOUT)
 
     def start(self, container_names, state):
         for container in container_names:
@@ -293,6 +296,11 @@ class Blockade(object):
         state = self.state_factory.load()
         containers = [c.name for c in self._get_running_containers(state=state)
                       if not c.holy]
+
+        # no containers to partition
+        if not containers:
+            return []
+
         num_containers = len(containers)
         num_partitions = random.randint(1, num_containers)
 
@@ -350,23 +358,28 @@ class Container(object):
             setattr(self, k, v)
 
     def to_dict(self):
-        return dict(name=self.name, container_id=self.container_id,
-                    state=self.state, ip_address=self.ip_address,
+        return dict(name=self.name,
+                    container_id=self.container_id,
+                    state=self.state,
+                    ip_address=self.ip_address,
                     device=self.device,
                     network_state=self.network_state,
                     partition=self.partition)
 
 
 class ContainerState(object):
+    '''Different possible container states
+    '''
     UP = "UP"
     DOWN = "DOWN"
     MISSING = "MISSING"
 
 
 def expand_partitions(containers, partitions):
-    """Validate the partitions of containers. If there are any containers
+    '''
+    Validate the partitions of containers. If there are any containers
     not in any partition, place them in an new partition.
-    """
+    '''
 
     # filter out holy containers that don't belong
     # to any partition at all
@@ -379,17 +392,17 @@ def expand_partitions(containers, partitions):
     holy = set()
     union = set()
 
-    for index, partition in enumerate(partitions):
+    for partition in partitions:
         unknown.update(partition - all_names - holy_names)
         holy.update(partition - all_names)
         union.update(partition)
 
     if unknown:
-        raise BlockadeError("Partitions have unknown containers: %s" %
+        raise BlockadeError('Partitions contain unknown containers: %s' %
                             list(unknown))
 
     if holy:
-        raise BlockadeError("Partitions contain holy containers: %s" %
+        raise BlockadeError('Partitions contain holy containers: %s' %
                             list(holy))
 
     # put any leftover containers in an implicit partition
