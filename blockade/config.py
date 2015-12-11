@@ -35,7 +35,7 @@ class BlockadeContainerConfig(object):
         # determine the number of instances of this container
         count = 1
         count_value = values.get('count', 1)
-        if isinstance(count_value, (int, long)):
+        if isinstance(count_value, int):
             count = max(count_value, 1)
 
         def get_instance(n):
@@ -74,7 +74,7 @@ class BlockadeContainerConfig(object):
             raise BlockadeConfigError("container must not be 'neutral' and 'holy' at the same time")
 
         # check start_delay format
-        if not isinstance(start_delay, (int, long)):
+        if not isinstance(start_delay, int):
             raise BlockadeConfigError("'start_delay' has to be an integer")
 
         self.start_delay = max(start_delay, 0)

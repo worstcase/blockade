@@ -14,8 +14,6 @@
 # limitations under the License.
 #
 
-from copy import deepcopy
-
 import errno
 import random
 import sys
@@ -354,6 +352,9 @@ class Container(object):
         self.name = name
         self.container_id = container_id
         self.state = state
+        self.holy = False
+        self.neutral = False
+
         for k, v in kwargs.items():
             setattr(self, k, v)
 

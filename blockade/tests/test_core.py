@@ -17,7 +17,7 @@
 import mock
 
 from blockade.tests import unittest
-from blockade.core import Blockade, expand_partitions
+from blockade.core import Blockade, Container, ContainerState, expand_partitions
 from blockade.errors import BlockadeError
 from blockade.config import BlockadeContainerConfig, BlockadeConfig
 from blockade.state import BlockadeState
@@ -32,9 +32,9 @@ class BlockadeCoreTests(unittest.TestCase):
         self.docker_client = mock.Mock()
 
     def test_create(self):
-        containers = [BlockadeContainerConfig("c1", "image"),
-                      BlockadeContainerConfig("c2", "image"),
-                      BlockadeContainerConfig("c3", "image")]
+        containers = {'c1': BlockadeContainerConfig("c1", "image"),
+                      'c2': BlockadeContainerConfig("c2", "image"),
+                      'c3': BlockadeContainerConfig("c3", "image")}
         config = BlockadeConfig(containers)
 
         self.network.get_container_device.side_effect = lambda dc, x, y: "veth"+y
@@ -55,7 +55,12 @@ class BlockadeCoreTests(unittest.TestCase):
         self.assertEqual(self.docker_client.create_container.call_count, 3)
 
     def test_expand_partitions(self):
-        containers = ["c1", "c2", "c3", "c4", "c5"]
+        def normal(name):
+            return Container(name, 'id-'+name, ContainerState.UP)
+        containers = [normal(name) for name in ["c1", "c2", "c3", "c4", "c5"]]
+
+        # add a holy container as well
+        containers.append(Container('c6', 'id-c6', ContainerState.UP, holy=True))
 
         partitions = expand_partitions(containers, [["c1", "c3"]])
         self.assert_partitions(partitions, [["c1", "c3"], ["c2", "c4", "c5"]])
@@ -67,8 +72,8 @@ class BlockadeCoreTests(unittest.TestCase):
         with self.assertRaisesRegexp(BlockadeError, "unknown"):
             expand_partitions(containers, [["c1"], ["c100"]])
 
-        with self.assertRaisesRegexp(BlockadeError, "overlap"):
-            expand_partitions(containers, [["c1"], ["c1", "c2"]])
+        with self.assertRaisesRegexp(BlockadeError, "holy"):
+            expand_partitions(containers, [["c1"], ["c2", "c6"]])
 
     def assert_partitions(self, partitions1, partitions2):
         setofsets1 = frozenset(frozenset(n) for n in partitions1)
