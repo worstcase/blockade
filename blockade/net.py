@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+import itertools
 import os
 import re
 import subprocess
@@ -251,26 +252,60 @@ def clear_iptables(blockade_id):
     iptables_delete_blockade_chains(blockade_id)
 
 
+def _get_chain_groups(partitions):
+    chains = []
+
+    def find_partition(name):
+        for idx, parts in enumerate(chains):
+            in_partition = any(c.name == name for c in parts)
+            if in_partition:
+                return idx
+        return None
+
+    for partition in partitions:
+        new_part = []
+        for part in partition:
+            in_partition = find_partition(part.name)
+            if not in_partition is None:
+                chains[in_partition].remove(part)
+                chains.append(set([part]))
+            else:
+                new_part.append(part)
+        if new_part:
+            chains.append(set(new_part))
+
+    # prune empty partitions
+    return [x for x in chains if len(x) > 0]
+
+
 def partition_containers(blockade_id, partitions):
     if not partitions or len(partitions) == 1:
         return
-    for index, partition in enumerate(partitions, 1):
-        chain_name = partition_chain_name(blockade_id, index)
 
-        # create chain for partition and block traffic TO any other partition
+    all_nodes = frozenset(itertools.chain(*partitions))
+
+    for idx, chain_group in enumerate(_get_chain_groups(partitions)):
+        chain_name = partition_chain_name(blockade_id, idx+1)
         iptables_create_chain(chain_name)
-        for other in partitions:
-            if partition is other:
-                continue
-            for container in other:
-                if container.ip_address:
-                    iptables_insert_rule(chain_name, dest=container.ip_address,
-                                         target="DROP")
 
-        # direct traffic FROM any container in the partition to the new chain
-        for container in partition:
-            iptables_insert_rule("FORWARD", src=container.ip_address,
-                                 target=chain_name)
+        # direct all traffic of the chain group members to this chain
+        for container in chain_group:
+            if container.ip_address:
+                iptables_insert_rule("FORWARD", src=container.ip_address,
+                                     target=chain_name)
+
+        def in_group(container):
+            return any(container.name == x.name for x in chain_group)
+
+        # block all transfer of partitions the containers of this chain group  are NOT part of
+        chain_partition_members = set(itertools.chain(*[parts for parts in partitions
+                                                        if any(in_group(c) for c in parts)]))
+        to_block = all_nodes - chain_partition_members
+
+        for container in to_block:
+            if container.ip_address:
+                iptables_insert_rule(chain_name, dest=container.ip_address,
+                                     target="DROP")
 
 
 def traffic_control_restore(device):

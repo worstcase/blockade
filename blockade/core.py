@@ -374,7 +374,6 @@ def expand_partitions(containers, partitions):
     partitions = [frozenset(p) for p in partitions]
 
     unknown = set()
-    overlap = set()
     neutral = set()
     union = set()
 
@@ -383,9 +382,6 @@ def expand_partitions(containers, partitions):
         neutral.update(partition - all_names)
         union.update(partition)
 
-        for other in partitions[index+1:]:
-            overlap.update(partition.intersection(other))
-
     if unknown:
         raise BlockadeError("Partitions have unknown containers: %s" %
                             list(unknown))
@@ -393,10 +389,6 @@ def expand_partitions(containers, partitions):
     if neutral:
         raise BlockadeError("Partitions contain neutral containers: %s" %
                             list(neutral))
-
-    if overlap:
-        raise BlockadeError("Partitions have overlapping containers: %s" %
-                            list(overlap))
 
     # put any leftover containers in an implicit partition
     leftover = all_names.difference(union)
