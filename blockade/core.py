@@ -397,4 +397,9 @@ def expand_partitions(containers, partitions):
     if leftover:
         partitions.append(leftover)
 
+    # we create an 'implicit' partition for the neutral containers
+    # in case they are not part of the leftover anyways
+    if not neutral_names.issubset(leftover):
+        partitions.append(neutral_names)
+
     return partitions

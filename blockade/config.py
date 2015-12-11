@@ -70,6 +70,9 @@ class BlockadeContainerConfig(object):
         self.neutral = neutral
         self.holy = holy
 
+        if neutral and holy:
+            raise BlockadeConfigError("container must not be 'neutral' and 'holy' at the same time")
+
         # check start_delay format
         if not isinstance(start_delay, (int, long)):
             raise BlockadeConfigError("'start_delay' has to be an integer")
