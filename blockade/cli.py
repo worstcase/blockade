@@ -70,7 +70,7 @@ def print_containers(containers, to_json=False):
                                   ["PARTITION",          10])))
 
         def partition_label(c):
-            if c.neutral: return "N"
+            if c.holy: return "H"
             elif c.partition: return str(c.partition)
             else: return ""
 

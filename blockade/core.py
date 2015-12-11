@@ -169,10 +169,11 @@ class Blockade(object):
             extras['network_state'] = NetworkState.UNKNOWN
             extras['device'] = None
 
-        # lookup 'neutral' in config
+        # lookup 'holy' and 'neutral' containers
         # TODO: this might go into the state as well..?
         cfg_container = self.config.containers.get(name)
         extras['neutral'] = cfg_container.neutral if cfg_container else False
+        extras['holy'] = cfg_container.holy if cfg_container else False
 
         return Container(name, container_id, container_state, **extras)
 
@@ -291,7 +292,7 @@ class Blockade(object):
     def random_partition(self):
         state = self.state_factory.load()
         containers = [c.name for c in self._get_running_containers(state=state)
-                      if not c.neutral]
+                      if not c.holy]
         num_containers = len(containers)
         num_partitions = random.randint(1, num_containers)
 
@@ -367,28 +368,29 @@ def expand_partitions(containers, partitions):
     not in any partition, place them in an new partition.
     """
 
-    # filter out neutral containers that don't belong
+    # filter out holy containers that don't belong
     # to any partition at all
-    all_names = frozenset(c.name for c in containers if not c.neutral)
+    all_names = frozenset(c.name for c in containers if not c.holy)
+    holy_names = frozenset(c.name for c in containers if c.holy)
     neutral_names = frozenset(c.name for c in containers if c.neutral)
     partitions = [frozenset(p) for p in partitions]
 
     unknown = set()
-    neutral = set()
+    holy = set()
     union = set()
 
     for index, partition in enumerate(partitions):
-        unknown.update(partition - all_names - neutral_names)
-        neutral.update(partition - all_names)
+        unknown.update(partition - all_names - holy_names)
+        holy.update(partition - all_names)
         union.update(partition)
 
     if unknown:
         raise BlockadeError("Partitions have unknown containers: %s" %
                             list(unknown))
 
-    if neutral:
-        raise BlockadeError("Partitions contain neutral containers: %s" %
-                            list(neutral))
+    if holy:
+        raise BlockadeError("Partitions contain holy containers: %s" %
+                            list(holy))
 
     # put any leftover containers in an implicit partition
     leftover = all_names.difference(union)
