@@ -105,6 +105,11 @@ class BlockadeStateFactory(object):
         return BlockadeState(blockade_id, containers)
 
     @staticmethod
+    def exists():
+        '''Checks whether a blockade state file already exists'''
+        return os.path.isfile(BLOCKADE_STATE_FILE)
+
+    @staticmethod
     def update(blockade_id, containers):
         '''Update the current state file with the specified contents'''
         BlockadeStateFactory.__write(blockade_id, deepcopy(containers), initialize=False)

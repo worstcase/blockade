@@ -21,7 +21,7 @@ import time
 
 import docker
 
-from .errors import BlockadeError, InsufficientPermissionsError
+from .errors import BlockadeError, AlreadyInitializedError, InsufficientPermissionsError
 from .net import NetworkState, BlockadeNetwork
 from .state import BlockadeState, BlockadeStateFactory
 
@@ -43,19 +43,25 @@ class Blockade(object):
         blockade_id = self.state_factory.get_blockade_id()
         num_containers = len(self.config.sorted_containers)
 
+        # we can check if a state file already exists beforehand
+        if self.state_factory.exists():
+            raise AlreadyInitializedError('a blockade already exists in here - '
+                                          'you may want to destroy it first')
+
+        def vprint(msg):
+            if verbose:
+                sys.stdout.write(msg)
+                sys.stdout.flush()
+
         for idx, container in enumerate(self.config.sorted_containers):
             name = container.name
 
-            if verbose:
-                sys.stdout.write("\r[%d/%d] Starting '%s' " % (idx+1, num_containers, name))
-                sys.stdout.flush()
+            vprint("\r[%d/%d] Starting '%s' " % (idx+1, num_containers, name))
 
             # in case a startup delay is configured
             # we have to wait in here
             if container.start_delay > 0:
-                if verbose:
-                    sys.stdout.write('(delaying for %d seconds)' % (container.start_delay))
-                    sys.stdout.flush()
+                vprint('(delaying for %d seconds)' % (container.start_delay))
                 time.sleep(container.start_delay)
 
             container_id = self._start_container(container)
@@ -65,12 +71,17 @@ class Blockade(object):
             container_state[name] = {'device': device, 'id': container_id}
 
         # clear progress line
-        if verbose:
-            sys.stdout.write('\r')
-            sys.stdout.flush()
+        vprint('\r')
 
-        # persist container states
-        state = self.state_factory.initialize(container_state, blockade_id)
+        # try to persist container states
+        try:
+            state = self.state_factory.initialize(container_state, blockade_id)
+        except Exception:
+            # if state persistence failed we rather remove the started containers
+            for container in container_state.values():
+                cid = container['id']
+                self.docker_client.remove_container(cid, force=True)
+            raise
 
         container_descriptions = []
         for container in self.config.sorted_containers:
@@ -185,7 +196,7 @@ class Blockade(object):
         containers = self._get_docker_containers(state)
         for container in list(containers.values()):
             container_id = container['Id']
-            self.docker_client.stop(container_id, timeout=3)
+            self.docker_client.stop(container_id, timeout=DEFAULT_KILL_TIMEOUT)
             self.docker_client.remove_container(container_id)
 
         self.network.restore(state.blockade_id)
