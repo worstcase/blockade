@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+from __future__ import print_function
+
 import errno
 import random
 import sys
@@ -21,7 +23,11 @@ import time
 
 import docker
 
-from .errors import BlockadeError, AlreadyInitializedError, InsufficientPermissionsError
+from .errors import BlockadeError,\
+                    AlreadyInitializedError,\
+                    BlockadeContainerConflictError,\
+                    InsufficientPermissionsError
+
 from .net import NetworkState, BlockadeNetwork
 from .state import BlockadeState, BlockadeStateFactory
 
@@ -38,7 +44,7 @@ class Blockade(object):
         self.network = network or BlockadeNetwork(config)
         self.docker_client = docker_client or docker.Client()
 
-    def create(self, verbose=False):
+    def create(self, verbose=False, force=False):
         container_state = {}
         blockade_id = self.state_factory.get_blockade_id()
         num_containers = len(self.config.sorted_containers)
@@ -64,7 +70,7 @@ class Blockade(object):
                 vprint('(delaying for %d seconds)' % (container.start_delay))
                 time.sleep(container.start_delay)
 
-            container_id = self._start_container(container)
+            container_id = self._start_container(container, force)
             device = self._init_container(container_id, name)
 
             # store device in state file
@@ -111,7 +117,7 @@ class Blockade(object):
 
         return device
 
-    def _start_container(self, container):
+    def _start_container(self, container, force=False):
         volumes = list(container.volumes.values()) or None
         links = dict((link, alias)
                      for link, alias in container.links.items())
@@ -123,24 +129,44 @@ class Blockade(object):
             binds=container.volumes,
             port_bindings=port_bindings, links=links)
 
-        # create container
-        response = self.docker_client.create_container(
-            container.image,
-            command=container.command,
-            name=container.name,
-            ports=container.expose_ports,
-            volumes=volumes,
-            hostname=container.name,
-            environment=container.environment,
-            host_config=host_config)
+        def create_container():
+            # try to create container
+            response = self.docker_client.create_container(
+                container.image,
+                command=container.command,
+                name=container.name,
+                ports=container.expose_ports,
+                volumes=volumes,
+                hostname=container.name,
+                environment=container.environment,
+                host_config=host_config)
 
-        container_id = response['Id']
+            return response['Id']
+
+        try:
+            container_id = create_container()
+        except docker.errors.APIError as err:
+            if err.response.status_code == 409 and err.is_client_error():
+                # if force is set we are retrying after removing the
+                # container with that name first
+                if force and self.__try_remove_container(container.name):
+                    container_id = create_container()
+                else:
+                    raise BlockadeContainerConflictError(err)
+            else:
+                raise
 
         # start container
         self.docker_client.start(container_id)
-
         return container_id
 
+    def __try_remove_container(self, name):
+        try:
+            self.docker_client.remove_container(name, force=True)
+            return True
+        except Exception:
+            # TODO: log error?
+            return False
 
     def _get_container_description(self, state, name, network_state=True,
                                    ip_partitions=None):
@@ -149,8 +175,8 @@ class Blockade(object):
 
         try:
             container = self.docker_client.inspect_container(container_id)
-        except docker.APIError as e:
-            if e.response.status_code == 404:
+        except docker.errors.APIError as err:
+            if err.response.status_code == 404:
                 return Container(name, container_id, ContainerState.MISSING)
             else:
                 raise

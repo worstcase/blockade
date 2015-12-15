@@ -25,6 +25,11 @@ class BlockadeConfigError(BlockadeError):
     """
 
 
+class BlockadeContainerConflictError(BlockadeError):
+    """Error on conflicting containers
+    """
+
+
 class AlreadyInitializedError(BlockadeError):
     """Blockade already created in this context
     """

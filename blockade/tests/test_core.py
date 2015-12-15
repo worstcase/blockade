@@ -41,6 +41,7 @@ class BlockadeCoreTests(unittest.TestCase):
 
         initialize = lambda x, y: BlockadeState("ourblockadeid", x)
         self.state_factory.initialize.side_effect = initialize
+        self.state_factory.exists.side_effect = lambda: False
         self.docker_client.create_container.side_effect = [
             {"Id": "container1"},
             {"Id": "container2"},

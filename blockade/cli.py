@@ -115,7 +115,7 @@ def cmd_up(opts):
     """
     config = load_config(opts.config)
     b = get_blockade(config)
-    containers = b.create(verbose=True)
+    containers = b.create(verbose=True, force=opts.force)
     print_containers(containers, opts.json)
 
 
@@ -276,6 +276,10 @@ def setup_parser():
 
     # add additional parameters to some commands
     _add_output_options(command_parsers["up"])
+    command_parsers["up"].add_argument("-f", "--force",
+                                       action='store_true',
+                                       help='try to remove any conflicting containers if necessary')
+
     _add_output_options(command_parsers["status"])
     _add_output_options(command_parsers["random-partition"])
 
