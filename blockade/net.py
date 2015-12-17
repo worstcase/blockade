@@ -15,11 +15,10 @@
 #
 
 import itertools
-import os
 import re
 import subprocess
 
-from .errors import BlockadeError
+from .errors import BlockadeError, InsufficientPermissionsError
 import collections
 
 
@@ -64,23 +63,9 @@ class BlockadeNetwork(object):
         return iptables_get_source_chains(blockade_id)
 
     def get_container_device(self, docker_client, container_id, container_name):
-        cont_state = docker_client.inspect_container(container_id)
-        sandbox_key = cont_state['NetworkSettings']['SandboxKey']
-
-        # create a symlink to the container's network namespace
-        netns_dir = '/var/run/netns'
-        container_ns = netns_dir+'/'+container_name
-
-        # create parent directory to be sure (this does not necessarily exist)
-        if not os.path.isdir(netns_dir):
-            os.mkdir(netns_dir)
-        os.symlink(sandbox_key, container_ns)
-
         try:
-            call = ['ip', 'netns', 'exec', container_name,
-                    'ip', '-4', 'a', 's', 'eth0']
-            res = subprocess.check_output(call)
-            peer_idx = int(re.search('^([0-9]+):', res.decode()).group(1))
+            res = docker_client.execute(container_name, ['ip', 'link', 'show', 'eth0'])
+            peer_idx = int(re.search('^([0-9]+):', res).group(1))
 
             # all my experiments showed the host device index was
             # one greater than its associated container device index
@@ -94,8 +79,6 @@ class BlockadeNetwork(object):
             raise BlockadeError(
                 "Problem determining host network device for container '%s'" %
                 (container_id))
-        finally:
-            os.remove(container_ns)
 
 
 def parse_partition_index(blockade_id, chain):
@@ -117,16 +100,22 @@ def iptables_call_output(*args):
     try:
         output = subprocess.check_output(cmd)
         return output.decode().split("\n")
-    except subprocess.CalledProcessError:
-        raise BlockadeError("Problem calling '%s'" % " ".join(cmd))
+    except subprocess.CalledProcessError as err:
+        error = "Problem calling '%s'" % " ".join(cmd)
+        if err.returncode == 3:
+            raise InsufficientPermissionsError(error)
+        raise BlockadeError(error)
 
 
 def iptables_call(*args):
     cmd = ["iptables"] + list(args)
     try:
         subprocess.check_call(cmd)
-    except subprocess.CalledProcessError:
-        raise BlockadeError("Problem calling '%s'" % " ".join(cmd))
+    except subprocess.CalledProcessError as err:
+        error = "Problem calling '%s'" % " ".join(cmd)
+        if err.returncode == 3:
+            raise InsufficientPermissionsError(error)
+        raise BlockadeError(error)
 
 
 def iptables_get_chain_rules(chain):
