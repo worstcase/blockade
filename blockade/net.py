@@ -64,7 +64,7 @@ class BlockadeNetwork(object):
 
     def get_container_device(self, docker_client, container_id, container_name):
         try:
-            res = docker_client.execute(container_name, ['ip', 'link', 'show', 'eth0'])
+            res = docker_client.execute(container_name, ['ip', 'link', 'show', 'eth0']).decode('utf-8')
             peer_idx = int(re.search('^([0-9]+):', res).group(1))
 
             # all my experiments showed the host device index was
