@@ -137,7 +137,7 @@ class Blockade(object):
                 name=container.name,
                 ports=container.expose_ports,
                 volumes=volumes,
-                hostname=container.name,
+                hostname=container.hostname,
                 environment=container.environment,
                 host_config=host_config)
 

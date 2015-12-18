@@ -1,16 +1,19 @@
 containers:
   c1:
     image: ubuntu
+    hostname: c1
     command: /bin/sleep 30000
     # this port is unused, but we need at least one open for docker links
     expose: [10000]
 
   c2:
     image: ubuntu
+    hostname: c2
     command: sh -c "ping -i5 $C1_PORT_10000_TCP_ADDR"
     links: ["c1"]
 
   c3:
     image: ubuntu
+    hostname: c3
     command: sh -c "ping -i5 $C1_PORT_10000_TCP_ADDR"
     links: ["c1"]
