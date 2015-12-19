@@ -41,7 +41,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.provider :virtualbox do |vb, override|
   end
 
-  config.vm.provision "docker"
+  config.vm.provision "docker",
+    images: ["ubuntu"]
 
   # kick off the tests automatically
   config.vm.provision "shell", inline: script
