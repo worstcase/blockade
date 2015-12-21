@@ -14,11 +14,11 @@
 # limitations under the License.
 #
 
-import random
-import string
+import itertools
+import re
 import subprocess
 
-from .errors import BlockadeError
+from .errors import BlockadeError, InsufficientPermissionsError
 import collections
 
 
@@ -26,16 +26,13 @@ class NetworkState(object):
     NORMAL = "NORMAL"
     SLOW = "SLOW"
     FLAKY = "FLAKY"
+    DUPLICATE = "DUPLICATE"
     UNKNOWN = "UNKNOWN"
 
 
 class BlockadeNetwork(object):
     def __init__(self, config):
         self.config = config
-
-    def new_veth_device_name(self):
-        chars = string.ascii_letters + string.digits
-        return "veth" + "".join(random.choice(chars) for _ in range(8))
 
     def network_state(self, device):
         return network_state(device)
@@ -47,6 +44,10 @@ class BlockadeNetwork(object):
     def slow(self, device):
         slow_config = self.config.network['slow'].split()
         traffic_control_netem(device, ["delay"] + slow_config)
+
+    def duplicate(self, device):
+        duplicate_config = self.config.network['duplicate'].split()
+        traffic_control_netem(device, ["duplicate"] + duplicate_config)
 
     def fast(self, device):
         traffic_control_restore(device)
@@ -60,6 +61,36 @@ class BlockadeNetwork(object):
 
     def get_ip_partitions(self, blockade_id):
         return iptables_get_source_chains(blockade_id)
+
+    def get_container_device(self, docker_client, container_id, container_name):
+        try:
+            res = docker_client.execute(container_name, ['ip', 'link', 'show', 'eth0']).decode('utf-8')
+            device = re.search('^([0-9]+):', res)
+            if not device:
+                raise BlockadeError(
+                    "Problem determining host network device for container '%s'" %
+                    (container_id))
+
+            peer_idx = int(device.group(1))
+
+            # all my experiments showed the host device index was
+            # one greater than its associated container device index
+            host_idx = peer_idx + 1
+            host_res = subprocess.check_output(['ip', 'link'])
+
+            host_rgx = '^%d: ([^:@]+)[:@]' % host_idx
+            host_match = re.search(host_rgx, host_res.decode(), re.M)
+            if not host_match:
+                raise BlockadeError(
+                    "Problem determining host network device for container '%s'" %
+                    (container_id))
+
+            host_device = host_match.group(1)
+            return host_device
+        except subprocess.CalledProcessError:
+            raise BlockadeError(
+                "Problem determining host network device for container '%s'" %
+                (container_id))
 
 
 def parse_partition_index(blockade_id, chain):
@@ -81,16 +112,22 @@ def iptables_call_output(*args):
     try:
         output = subprocess.check_output(cmd)
         return output.decode().split("\n")
-    except subprocess.CalledProcessError:
-        raise BlockadeError("Problem calling '%s'" % " ".join(cmd))
+    except subprocess.CalledProcessError as err:
+        error = "Problem calling '%s'" % " ".join(cmd)
+        if err.returncode == 3:
+            raise InsufficientPermissionsError(error)
+        raise BlockadeError(error)
 
 
 def iptables_call(*args):
     cmd = ["iptables"] + list(args)
     try:
         subprocess.check_call(cmd)
-    except subprocess.CalledProcessError:
-        raise BlockadeError("Problem calling '%s'" % " ".join(cmd))
+    except subprocess.CalledProcessError as err:
+        error = "Problem calling '%s'" % " ".join(cmd)
+        if err.returncode == 3:
+            raise InsufficientPermissionsError(error)
+        raise BlockadeError(error)
 
 
 def iptables_get_chain_rules(chain):
@@ -216,26 +253,61 @@ def clear_iptables(blockade_id):
     iptables_delete_blockade_chains(blockade_id)
 
 
+def _get_chain_groups(partitions):
+    chains = []
+
+    def find_partition(name):
+        for idx, parts in enumerate(chains):
+            in_partition = any(c.name == name for c in parts)
+            if in_partition:
+                return idx
+        return None
+
+    for partition in partitions:
+        new_part = []
+        for part in partition:
+            in_partition = find_partition(part.name)
+            if not in_partition is None:
+                chains[in_partition].remove(part)
+                chains.append(set([part]))
+            else:
+                new_part.append(part)
+        if new_part:
+            chains.append(set(new_part))
+
+    # prune empty partitions
+    return [x for x in chains if len(x) > 0]
+
+
 def partition_containers(blockade_id, partitions):
     if not partitions or len(partitions) == 1:
         return
-    for index, partition in enumerate(partitions, 1):
-        chain_name = partition_chain_name(blockade_id, index)
 
-        # create chain for partition and block traffic TO any other partition
+    # partitions without IP addresses can't be part of any
+    # iptables rule anyway
+    ip_partitions = [[c for c in parts if c.ip_address] for parts in partitions]
+
+    all_nodes = frozenset(itertools.chain(*ip_partitions))
+
+    for idx, chain_group in enumerate(_get_chain_groups(ip_partitions)):
+        # create a new chain
+        chain_name = partition_chain_name(blockade_id, idx+1)
         iptables_create_chain(chain_name)
-        for other in partitions:
-            if partition is other:
-                continue
-            for container in other:
-                if container.ip_address:
-                    iptables_insert_rule(chain_name, dest=container.ip_address,
-                                         target="DROP")
 
-        # direct traffic FROM any container in the partition to the new chain
-        for container in partition:
-            iptables_insert_rule("FORWARD", src=container.ip_address,
-                                 target=chain_name)
+        # direct all traffic of the chain group members to this chain
+        for container in chain_group:
+            iptables_insert_rule("FORWARD", src=container.ip_address, target=chain_name)
+
+        def in_group(container):
+            return any(container.name == x.name for x in chain_group)
+
+        # block all transfer of partitions the containers of this chain group  are NOT part of
+        chain_partition_members = set(itertools.chain(*[parts for parts in ip_partitions
+                                                        if any(in_group(c) for c in parts)]))
+        to_block = all_nodes - chain_partition_members
+
+        for container in to_block:
+            iptables_insert_rule(chain_name, dest=container.ip_address, target="DROP")
 
 
 def traffic_control_restore(device):
@@ -277,6 +349,8 @@ def network_state(device):
             return NetworkState.SLOW
         if " loss " in output:
             return NetworkState.FLAKY
+        if " duplicate " in output:
+            return NetworkState.DUPLICATE
         return NetworkState.NORMAL
 
     except subprocess.CalledProcessError:

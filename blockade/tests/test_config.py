@@ -117,7 +117,7 @@ class ConfigTests(unittest.TestCase):
         config = BlockadeConfig.from_dict(d)
         self.assertEqual(len(config.containers), 1)
         c1 = config.containers['c1']
-        self.assertEqual(c1.environment, {"HATS": 4, "JACKETS": "some"})
+        self.assertEqual(c1.environment, {"HATS": "4", "JACKETS": "some"})
 
     def test_parse_with_publish_1(self):
         containers = {

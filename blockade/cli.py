@@ -14,26 +14,26 @@
 # limitations under the License.
 #
 
-import sys
 import argparse
-import traceback
 import errno
 import json
+import sys
+import traceback
 
 import yaml
 from clint.textui import puts, puts_err, colored, columns
 
-from .errors import BlockadeError
+from .errors import BlockadeError, InsufficientPermissionsError
 from .core import Blockade
 from .state import BlockadeStateFactory
 from .config import BlockadeConfig
 from .net import BlockadeNetwork
 
 
-def load_config(opts):
+def load_config(config_file):
     error = None
-    paths = (opts.config,) if opts.config else ("blockade.yaml",
-                                                "blockade.yml")
+    paths = [config_file] if config_file else ["blockade.yaml",
+                                               "blockade.yml"]
     try:
         for path in paths:
             try:
@@ -68,15 +68,24 @@ def print_containers(containers, to_json=False):
                                   ["IP",                 15],
                                   ["NETWORK",            10],
                                   ["PARTITION",          10])))
+
+        def partition_label(c):
+            if c.holy: return "H"
+            elif c.partition:
+                if c.neutral:
+                    return str(c.partition) + " [N]"
+                else:
+                    return str(c.partition)
+            elif c.neutral: return "N"
+            else: return ""
+
         for container in containers:
-            partition = container.partition
-            partition = "" if partition is None else str(partition)
             puts(columns([container.name,                15],
                          [container.container_id[:12],   15],
                          [container.state,                7],
                          [container.ip_address or "",    15],
                          [container.network_state,       10],
-                         [partition,                     10]))
+                         [partition_label(container),    10]))
 
 
 def _add_output_options(parser):
@@ -104,16 +113,16 @@ def _check_container_selections(opts):
 def cmd_up(opts):
     """Start the containers and link them together
     """
-    config = load_config(opts)
+    config = load_config(opts.config)
     b = get_blockade(config)
-    containers = b.create()
+    containers = b.create(verbose=True, force=opts.force)
     print_containers(containers, opts.json)
 
 
 def cmd_destroy(opts):
     """Destroy all containers and restore networks
     """
-    config = load_config(opts)
+    config = load_config(opts.config)
     b = get_blockade(config)
     b.destroy()
 
@@ -121,37 +130,67 @@ def cmd_destroy(opts):
 def cmd_status(opts):
     """Print status of containers and networks
     """
-    config = load_config(opts)
+    config = load_config(opts.config)
     b = get_blockade(config)
     containers = b.status()
     print_containers(containers, opts.json)
 
 
+def __with_containers(opts, func):
+    containers, select_all = _check_container_selections(opts)
+    config = load_config(opts.config)
+    b = get_blockade(config)
+    state = b.state_factory.load()
+
+    configured_containers = set(state.containers.keys())
+    container_names = configured_containers if select_all or None else configured_containers.intersection(containers)
+
+    if len(container_names) > 0:
+        return func(b, container_names, state)
+    else:
+        raise BlockadeError('selection does not match any container')
+
+
+def cmd_start(opts):
+    """Start some or all containers
+    """
+    __with_containers(opts, Blockade.start)
+
+
+def cmd_stop(opts):
+    """Stop some or all containers
+    """
+    __with_containers(opts, Blockade.stop)
+
+
+def cmd_restart(opts):
+    """Restart some or all containers
+    """
+    __with_containers(opts, Blockade.restart)
+
+
 def cmd_flaky(opts):
     """Make the network flaky for some or all containers
     """
-    containers, select_all = _check_container_selections(opts)
-    config = load_config(opts)
-    b = get_blockade(config)
-    b.flaky(containers, select_all)
+    __with_containers(opts, Blockade.flaky)
 
 
 def cmd_slow(opts):
     """Make the network slow for some or all containers
     """
-    containers, select_all = _check_container_selections(opts)
-    config = load_config(opts)
-    b = get_blockade(config)
-    b.slow(containers, select_all)
+    __with_containers(opts, Blockade.slow)
 
 
 def cmd_fast(opts):
     """Restore network speed and reliability for some or all containers
     """
-    containers, select_all = _check_container_selections(opts)
-    config = load_config(opts)
-    b = get_blockade(config)
-    b.fast(containers, select_all)
+    __with_containers(opts, Blockade.fast)
+
+
+def cmd_duplicate(opts):
+    """Introduce packet duplication into the network of some or all container
+    """
+    __with_containers(opts, Blockade.duplicate)
 
 
 def cmd_partition(opts):
@@ -174,15 +213,23 @@ def cmd_partition(opts):
             if name:
                 names.append(name)
         partitions.append(names)
-    config = load_config(opts)
+    config = load_config(opts.config)
     b = get_blockade(config)
     b.partition(partitions)
+
+
+def cmd_random_partition(opts):
+    """Create zero or more random partitions among the running containers
+    """
+    config = load_config(opts.config)
+    b = get_blockade(config)
+    b.random_partition()
 
 
 def cmd_join(opts):
     """Restore full networking between containers
     """
-    config = load_config(opts)
+    config = load_config(opts.config)
     b = get_blockade(config)
     b.join()
 
@@ -190,14 +237,25 @@ def cmd_join(opts):
 def cmd_logs(opts):
     """Fetch the logs of a container
     """
-    config = load_config(opts)
+    config = load_config(opts.config)
     b = get_blockade(config)
     puts(b.logs(opts.container).decode(encoding='UTF-8'))
 
 
-_CMDS = (("up", cmd_up), ("destroy", cmd_destroy), ("status", cmd_status),
-         ("logs", cmd_logs), ("flaky", cmd_flaky), ("slow", cmd_slow),
-         ("fast", cmd_fast), ("partition", cmd_partition), ("join", cmd_join))
+_CMDS = (("up", cmd_up),
+         ("destroy", cmd_destroy),
+         ("status", cmd_status),
+         ("start", cmd_start),
+         ("restart", cmd_restart),
+         ("stop", cmd_stop),
+         ("logs", cmd_logs),
+         ("flaky", cmd_flaky),
+         ("slow", cmd_slow),
+         ("duplicate", cmd_duplicate),
+         ("fast", cmd_fast),
+         ("partition", cmd_partition),
+         ("random-partition", cmd_random_partition),
+         ("join", cmd_join))
 
 
 def setup_parser():
@@ -218,10 +276,20 @@ def setup_parser():
 
     # add additional parameters to some commands
     _add_output_options(command_parsers["up"])
+    command_parsers["up"].add_argument("-f", "--force",
+                                       action='store_true',
+                                       help='try to remove any conflicting containers if necessary')
+
     _add_output_options(command_parsers["status"])
+    _add_output_options(command_parsers["random-partition"])
+
+    _add_container_selection_options(command_parsers["start"])
+    _add_container_selection_options(command_parsers["stop"])
+    _add_container_selection_options(command_parsers["restart"])
     _add_container_selection_options(command_parsers["flaky"])
     _add_container_selection_options(command_parsers["slow"])
     _add_container_selection_options(command_parsers["fast"])
+    _add_container_selection_options(command_parsers["duplicate"])
 
     command_parsers["logs"].add_argument("container", metavar='CONTAINER',
                                          help="Container to fetch logs for")
@@ -240,6 +308,9 @@ def main(args=None):
 
     try:
         opts.func(opts)
+    except InsufficientPermissionsError as e:
+        puts_err(colored.red("\nInsufficient permissions error:\n") + str(e) + "\n")
+        rc = 1
     except BlockadeError as e:
         puts_err(colored.red("\nError:\n") + str(e) + "\n")
         rc = 1

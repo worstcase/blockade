@@ -25,6 +25,11 @@ class BlockadeConfigError(BlockadeError):
     """
 
 
+class BlockadeContainerConflictError(BlockadeError):
+    """Error on conflicting containers
+    """
+
+
 class AlreadyInitializedError(BlockadeError):
     """Blockade already created in this context
     """
@@ -37,4 +42,8 @@ class NotInitializedError(BlockadeError):
 
 class InconsistentStateError(BlockadeError):
     """Blockade state is inconsistent (partially created or destroyed)
+    """
+
+class InsufficientPermissionsError(BlockadeError):
+    """Blockade is executed with insufficient permissions
     """

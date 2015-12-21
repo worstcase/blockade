@@ -1,13 +1,16 @@
 containers:
   c1:
     image: ubuntu
+    hostname: c1
     command: sh -c 'echo "I am $HOSTNAME"; /bin/sleep 300'
     volumes: {"/tmp": "/mnt"}
 
   c2:
     image: ubuntu
+    hostname: c2
     command: sh -c 'echo "I am $HOSTNAME"; /bin/sleep 300'
 
   c3:
     image: ubuntu
+    hostname: c3
     command: sh -c 'echo "I am $HOSTNAME"; /bin/sleep 300'

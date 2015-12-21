@@ -15,76 +15,123 @@
 #
 
 import collections
+import os
+import re
 
 from .errors import BlockadeConfigError
 
 
 class BlockadeContainerConfig(object):
-    @staticmethod
-    def from_dict(name, d):
-        return BlockadeContainerConfig(
-            name, d['image'],
-            command=d.get('command'), links=d.get('links'),
-            lxc_conf=d.get('lxc_conf'), volumes=d.get('volumes'),
-            publish_ports=d.get('ports'), expose_ports=d.get('expose'),
-            environment=d.get('environment'))
+    '''Class that encapsulates the configuration of one container
+    '''
 
-    def __init__(self, name, image, command=None, links=None, lxc_conf=None,
-                 volumes=None, publish_ports=None, expose_ports=None, environment=None):
+    @staticmethod
+    def from_dict(name, values):
+        '''
+        Convert a dictionary of configuration values
+        into a sequence of BlockadeContainerConfig instances
+        '''
+
+        # determine the number of instances of this container
+        count = 1
+        count_value = values.get('count', 1)
+        if isinstance(count_value, int):
+            count = max(count_value, 1)
+
+        def get_instance(n):
+            return BlockadeContainerConfig(
+                n,
+                values['image'],
+                command=values.get('command'),
+                links=values.get('links'),
+                volumes=values.get('volumes'),
+                publish_ports=values.get('ports'),
+                expose_ports=values.get('expose'),
+                environment=values.get('environment'),
+                hostname=values.get('hostname'),
+                start_delay=values.get('start_delay', 0),
+                neutral=values.get('neutral', False),
+                holy=values.get('holy', False))
+
+        if count == 1:
+            yield get_instance(name)
+        else:
+            for idx in xrange(1, count+1):
+                # TODO: configurable name/index format
+                yield get_instance('%s_%d' % (name, idx))
+
+    def __init__(self, name, image, command=None, links=None, volumes=None,
+                 publish_ports=None, expose_ports=None, environment=None, hostname=None, start_delay=0, neutral=False, holy=False):
         self.name = name
+        self.hostname = hostname
         self.image = image
         self.command = command
-        self.links = _dictify(links, "links")
-        self.lxc_conf = dict(lxc_conf or {})
-        self.volumes = _dictify(volumes, "volumes")
-        self.publish_ports = _dictify(publish_ports, "ports")
-        # All published ports must also be exposed
+        self.links = _dictify(links, 'links')
+        self.volumes = _dictify(volumes, 'volumes', lambda x: os.path.abspath(_populate_env(x)))
+        self.publish_ports = _dictify(publish_ports, 'ports')
+        self.neutral = neutral
+        self.holy = holy
+
+        if neutral and holy:
+            raise BlockadeConfigError("container must not be 'neutral' and 'holy' at the same time")
+
+        # check start_delay format
+        if not isinstance(start_delay, int):
+            raise BlockadeConfigError("'start_delay' has to be an integer")
+
+        self.start_delay = max(start_delay, 0)
+
+        # all published ports must also be exposed
         self.expose_ports = list(set(
             int(port) for port in
             (expose_ports or []) + list(self.publish_ports.values())
         ))
-        self.environment = dict(environment or {})
+        self.environment = _dictify(environment, _populate_env, _populate_env)
 
 
 _DEFAULT_NETWORK_CONFIG = {
     "flaky": "30%",
     "slow": "75ms 100ms distribution normal",
+    "duplicate": "5%",
 }
 
 
 class BlockadeConfig(object):
     @staticmethod
-    def from_dict(d):
+    def from_dict(values):
+        '''
+        Instantiate a BlockadeConfig instance based on
+        a given dictionary of configuration values
+        '''
         try:
-            containers = d['containers']
+            containers = values['containers']
             parsed_containers = {}
             for name, container_dict in containers.items():
                 try:
-                    container = BlockadeContainerConfig.from_dict(
-                        name, container_dict)
-                    parsed_containers[name] = container
-
-                except Exception as e:
+                    # one config entry might result in many container
+                    # instances (indicated by the 'count' config value)
+                    for cnt in BlockadeContainerConfig.from_dict(name, container_dict):
+                        parsed_containers[cnt.name] = cnt
+                except Exception as err:
                     raise BlockadeConfigError(
-                        "Container '%s' config problem: %s" % (name, e))
+                        "Container '%s' config problem: %s" % (name, err))
 
-            network = d.get('network')
+            network = values.get('network')
             if network:
                 defaults = _DEFAULT_NETWORK_CONFIG.copy()
                 defaults.update(network)
                 network = defaults
-
             else:
                 network = _DEFAULT_NETWORK_CONFIG.copy()
 
             return BlockadeConfig(parsed_containers, network=network)
 
-        except KeyError as e:
-            raise BlockadeConfigError("Config missing value: " + str(e))
+        except KeyError as err:
+            raise BlockadeConfigError("Config missing value: " + str(err))
 
-        except Exception as e:
+        except Exception as err:
             # TODO log this to some debug stream?
-            raise BlockadeConfigError("Failed to load config: " + str(e))
+            raise BlockadeConfigError("Failed to load config: " + str(err))
 
     def __init__(self, containers, network=None):
         self.containers = containers
@@ -92,12 +139,33 @@ class BlockadeConfig(object):
         self.network = network or {}
 
 
-def _dictify(data, name="input"):
+def _populate_env(value):
+    cwd = os.getcwd()
+    # in here we may place some 'special' placeholders
+    # that get replaced by blockade itself
+    builtins = {
+        # usually $PWD is set by the shell anyway but
+        # blockade is often used in terms of sudo that sometimes
+        # removes various environment variables
+        'PWD': cwd,
+        'CWD': cwd
+        }
+
+    def get_env_value(match):
+        key = match.group(1)
+        env = os.environ.get(key) or builtins.get(key)
+        if not env:
+            raise BlockadeConfigError("there is no environment variable '$%s'" % (key))
+        return env
+    return re.sub(r"\${([a-zA-Z][-_a-zA-Z0-9]*)}", get_env_value, value)
+
+
+def _dictify(data, name='input', key_mod=lambda x: x, value_mod=lambda x: x):
     if data:
         if isinstance(data, collections.Sequence):
-            return dict((str(v), str(v)) for v in data)
+            return dict((key_mod(str(v)), value_mod(str(v))) for v in data)
         elif isinstance(data, collections.Mapping):
-            return dict((str(k), str(v or k)) for k, v in list(data.items()))
+            return dict((key_mod(str(k)), value_mod(str(v or k))) for k, v in list(data.items()))
         else:
             raise BlockadeConfigError("invalid %s: need list or map"
                                       % (name,))
@@ -123,6 +191,8 @@ def _resolve(d):
     all_keys = frozenset(d.keys())
     result = []
     resolved_keys = set()
+
+    # TODO: take start delays into account as well
 
     while d:
         resolved_this_round = set()

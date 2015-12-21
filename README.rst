@@ -2,8 +2,9 @@
 Blockade
 ********
 
-.. image:: https://travis-ci.org/dcm-oss/blockade.png?branch=master
-        :target: https://travis-ci.org/dcm-oss/blockade
+    This repository is a fork of the original
+    `blockade <https://github.com/dcm-oss/blockade>`_ developed by
+    `dcm-oss <https://github.com/dcm-oss/>`_.
 
 Blockade is a utility for testing network failures and partitions in
 distributed applications. Blockade uses `Docker <http://www.docker.io>`_
@@ -43,16 +44,8 @@ Inspired by the excellent `Jepsen <http://aphyr.com/tags/jepsen>`_ series.
 Requirements
 ============
 
-Docker must be installed (>= 1.4.0 due to docker-py API requirements, <= 1.6.2
-due to `Docker issue #15231 <https://github.com/docker/docker/issues/15231>`_)
-and configured to use the LXC driver. The
-``native`` libcontainer driver is not yet supported by Blockade because
-it does not expose the necessary network parameters.
-
-Configure the LXC driver by adding ``-e lxc`` to your Docker daemon options.
-On Ubuntu, this can be done by adding this to ``/etc/default/docker``::
-
-    DOCKER_OPTS="-e lxc"
+* docker (>= 1.4.0 due to docker-py)
+* iproute2 tools (``ip`` and ``tc`` specifically)
 
 
 Configuration
@@ -60,29 +53,36 @@ Configuration
 
 Blockade expects a ``blockade.yaml`` file in the current directory which
 describes the containers to launch, how they are linked, and various
-parameters for the blockade modes. Example::
+parameters for the blockade modes. Example:
+
+.. code-block:: yaml
 
     containers:
       c1:
         image: my_docker_image
         command: /bin/myapp
-        volumes: {"/opt/myapp": "/opt/myapp_host"}
+        volumes:
+          "/opt/myapp": "/opt/myapp_host"
         expose: [80]
-        environment: {"IS_MASTER": 1}
-        ports: {81: 80}
+        environment:
+          "IS_MASTER": 1
+        ports:
+          81: 80
 
       c2:
         image: my_docker_image
         command: /bin/myapp
         volumes: ["/data"]
         expose: [80]
-        links: {c1: master}
+        links:
+          c1: master
 
       c3:
         image: my_docker_image
         command: /bin/myapp
         expose: [80]
-        links: {c1: master}
+        links:
+          c1: master
 
     network:
       flaky: 30%
@@ -133,6 +133,11 @@ Make network flaky to one or more containers.
 Make network slow to one or more containers.
 
 
+``blockade duplicate n1``
+
+Toggle sporadic duplicate packets in the network of one or more containers.
+
+
 ``blockade fast n1``
 
 Restore network speed and reliability to one or more containers.
@@ -152,6 +157,10 @@ partition command replaces any previous partition or block rules.
 
 Remove all partitions between containers.
 
+``blockade random-partition``
+
+Introduce one or many random partitions among the configured nodes.
+
 
 License
 =======
@@ -170,7 +179,9 @@ You can rerun them with ``vagrant provision``, or SSH into the VM and run
 them yourself, from ``/vagrant``.
 
 Blockade documentation is built with Sphinx and is found under ``docs/``.
-To build::
+To build:
+
+.. code-block:: bash
 
     $ pip install -r requirements_docs.txt
     $ cd docs/

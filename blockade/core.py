@@ -14,13 +14,26 @@
 # limitations under the License.
 #
 
-from copy import deepcopy
+from __future__ import print_function
+
+import errno
+import random
+import sys
+import time
 
 import docker
 
-from .errors import BlockadeError
+from .errors import BlockadeError,\
+                    AlreadyInitializedError,\
+                    BlockadeContainerConflictError,\
+                    InsufficientPermissionsError
+
 from .net import NetworkState, BlockadeNetwork
-from .state import BlockadeStateFactory
+from .state import BlockadeState, BlockadeStateFactory
+
+
+# TODO: configurable timeout
+DEFAULT_KILL_TIMEOUT = 3
 
 
 class Blockade(object):
@@ -31,53 +44,127 @@ class Blockade(object):
         self.network = network or BlockadeNetwork(config)
         self.docker_client = docker_client or docker.Client()
 
-    def create(self):
+    def create(self, verbose=False, force=False):
         container_state = {}
-        for container in self.config.sorted_containers:
-            veth_device = self.network.new_veth_device_name()
-            container_state[container.name] = {"veth_device": veth_device}
+        blockade_id = self.state_factory.get_blockade_id()
+        num_containers = len(self.config.sorted_containers)
 
-        # generate blockade ID and persist
-        state = self.state_factory.initialize(container_state)
+        # we can check if a state file already exists beforehand
+        if self.state_factory.exists():
+            raise AlreadyInitializedError('a blockade already exists in here - '
+                                          'you may want to destroy it first')
+
+        def vprint(msg):
+            if verbose:
+                sys.stdout.write(msg)
+                sys.stdout.flush()
+
+        for idx, container in enumerate(self.config.sorted_containers):
+            name = container.name
+
+            vprint("\r[%d/%d] Starting '%s' " % (idx+1, num_containers, name))
+
+            # in case a startup delay is configured
+            # we have to wait in here
+            if container.start_delay > 0:
+                vprint('(delaying for %d seconds)' % (container.start_delay))
+                time.sleep(container.start_delay)
+
+            container_id = self._start_container(container, force)
+            device = self._init_container(container_id, name)
+
+            # store device in state file
+            container_state[name] = {'device': device, 'id': container_id}
+
+        # clear progress line
+        vprint('\r')
+
+        # try to persist container states
+        state = self.state_factory.initialize(container_state, blockade_id)
 
         container_descriptions = []
         for container in self.config.sorted_containers:
-            veth_device = container_state[container.name]['veth_device']
-            container_id = self._start_container(state.blockade_id, container,
-                                                 veth_device)
-            description = self._get_container_description(
-                state, container.name, container_id)
+            description = self._get_container_description(state, container.name)
+
             container_descriptions.append(description)
 
         return container_descriptions
 
-    def _start_container(self, blockade_id, container, veth_device):
-        container_name = docker_container_name(blockade_id, container.name)
+    def _init_container(self, container_id, container_name):
+        # next we have to determine the veth pair of host/container
+        # that we formerly could pass in via 'lxc_conf' which is
+        # deprecated since docker > 1.6
+        device = None
+        try:
+            device = self.network.get_container_device(self.docker_client, container_id, container_name)
+        except OSError as err:
+            if err.errno in (errno.EACCES, errno.EPERM):
+                msg = "Failed to determine network device of container '%s' [%s]" % (container_name, container_id)
+                raise InsufficientPermissionsError(msg)
+            raise
+
+        return device
+
+    def _start_container(self, container, force=False):
         volumes = list(container.volumes.values()) or None
-        links = dict((docker_container_name(blockade_id, link), alias)
+        links = dict((link, alias)
                      for link, alias in container.links.items())
-        # The docker api for port bindings is `internal:external`
+
+        # the docker api for port bindings is `internal:external`
         port_bindings = dict((v, k) for k, v in container.publish_ports.items())
-        lxc_conf = deepcopy(container.lxc_conf)
-        lxc_conf['lxc.network.veth.pair'] = veth_device
-        host_config = docker.utils.create_host_config(binds=container.volumes,
-            port_bindings=port_bindings, links=links, lxc_conf=lxc_conf)
 
-        response = self.docker_client.create_container(
-            container.image, command=container.command, name=container_name,
-            ports=container.expose_ports, volumes=volumes, hostname=container.name,
-            environment=container.environment, host_config=host_config)
-        container_id = response['Id']
+        host_config = docker.utils.create_host_config(
+            binds=container.volumes,
+            port_bindings=port_bindings, links=links)
 
+        def create_container():
+            # try to create container
+            response = self.docker_client.create_container(
+                container.image,
+                command=container.command,
+                name=container.name,
+                ports=container.expose_ports,
+                volumes=volumes,
+                hostname=container.hostname,
+                environment=container.environment,
+                host_config=host_config)
+
+            return response['Id']
+
+        try:
+            container_id = create_container()
+        except docker.errors.APIError as err:
+            if err.response.status_code == 409 and err.is_client_error():
+                # if force is set we are retrying after removing the
+                # container with that name first
+                if force and self.__try_remove_container(container.name):
+                    container_id = create_container()
+                else:
+                    raise BlockadeContainerConflictError(err)
+            else:
+                raise
+
+        # start container
         self.docker_client.start(container_id)
         return container_id
 
-    def _get_container_description(self, state, name, container_id,
-                                   network_state=True, ip_partitions=None):
+    def __try_remove_container(self, name):
+        try:
+            self.docker_client.remove_container(name, force=True)
+            return True
+        except Exception:
+            # TODO: log error?
+            return False
+
+    def _get_container_description(self, state, name, network_state=True,
+                                   ip_partitions=None):
+        state_container = state.containers[name]
+        container_id = state_container['id']
+
         try:
             container = self.docker_client.inspect_container(container_id)
-        except docker.APIError as e:
-            if e.response.status_code == 404:
+        except docker.errors.APIError as err:
+            if err.response.status_code == 404:
                 return Container(name, container_id, ContainerState.MISSING)
             else:
                 raise
@@ -98,8 +185,8 @@ class Blockade(object):
 
         if (network_state and name in state.containers
                 and container_state == ContainerState.UP):
-            device = state.containers[name]['veth_device']
-            extras['veth_device'] = device
+            device = state_container['device']
+            extras['device'] = device
             extras['network_state'] = self.network.network_state(device)
 
             # include partition ID if we were provided a map of them
@@ -107,44 +194,47 @@ class Blockade(object):
                 extras['partition'] = ip_partitions.get(ip)
         else:
             extras['network_state'] = NetworkState.UNKNOWN
-            extras['veth_device'] = None
+            extras['device'] = None
+
+        # lookup 'holy' and 'neutral' containers
+        # TODO: this might go into the state as well..?
+        cfg_container = self.config.containers.get(name)
+        extras['neutral'] = cfg_container.neutral if cfg_container else False
+        extras['holy'] = cfg_container.holy if cfg_container else False
 
         return Container(name, container_id, container_state, **extras)
 
     def destroy(self, force=False):
         state = self.state_factory.load()
 
-        containers = self._get_docker_containers(state.blockade_id)
+        containers = self._get_docker_containers(state)
         for container in list(containers.values()):
             container_id = container['Id']
-            self.docker_client.stop(container_id, timeout=3)
+            self.docker_client.stop(container_id, timeout=DEFAULT_KILL_TIMEOUT)
             self.docker_client.remove_container(container_id)
 
         self.network.restore(state.blockade_id)
         self.state_factory.destroy()
 
-    def _get_docker_containers(self, blockade_id):
-        # look for containers prefixed with our blockade ID
-        prefix = "/" + blockade_id + "-"
-        d = {}
+    def _get_docker_containers(self, state):
+        containers = {}
         for container in self.docker_client.containers(all=True):
             for name in container['Names']:
-                if not name.startswith(prefix):
-                    continue
-                name = name[len(prefix):]
-                if '/' in name: # pseudo-name created by link
-                    continue
-                d[name] = container
-                break
-        return d
+                # strip leading '/'
+                name = name[1:] if name[0] == '/' else name
+                if name in state.containers:
+                    containers[name] = container
+                    break
+        return containers
 
     def _get_all_containers(self, state):
         containers = []
         ip_partitions = self.network.get_ip_partitions(state.blockade_id)
-        docker_containers = self._get_docker_containers(state.blockade_id)
-        for name, container in docker_containers.items():
-            containers.append(self._get_container_description(state, name,
-                              container['Id'], ip_partitions=ip_partitions))
+        docker_containers = self._get_docker_containers(state)
+
+        for name in docker_containers.keys():
+            container = self._get_container_description(state, name, ip_partitions=ip_partitions)
+            containers.append(container)
         return containers
 
     def status(self):
@@ -172,32 +262,94 @@ class Blockade(object):
     def _get_running_container(self, container_name, state=None):
         return self._get_running_containers((container_name,), state)[0]
 
-    def flaky(self, container_names=None, include_all=False):
-        if include_all:
-            container_names = None
-        containers = self._get_running_containers(container_names)
+    def __with_running_container_device(self, container_names, state, func):
+        containers = self._get_running_containers(container_names, state)
         for container in containers:
-            self.network.flaky(container.veth_device)
+            device = container.device
+            func(device)
 
-    def slow(self, container_names=None, include_all=False):
-        if include_all:
-            container_names = None
-        containers = self._get_running_containers(container_names)
+    def flaky(self, container_names, state):
+        self.__with_running_container_device(container_names, state, self.network.flaky)
+
+    def slow(self, container_names, state):
+        self.__with_running_container_device(container_names, state, self.network.slow)
+
+    def duplicate(self, container_names, state):
+        self.__with_running_container_device(container_names, state, self.network.duplicate)
+
+    def fast(self, container_names, state):
+        self.__with_running_container_device(container_names, state, self.network.fast)
+
+    def restart(self, container_names, state):
+        containers = self._get_running_containers(container_names, state)
         for container in containers:
-            self.network.slow(container.veth_device)
+            self._stop(container)
+            state = self._start(container.name, state)
 
-    def fast(self, container_names=None, include_all=False):
-        if include_all:
-            container_names = None
-        containers = self._get_running_containers(container_names)
+    def stop(self, container_names, state):
+        containers = self._get_running_containers(container_names, state)
         for container in containers:
-            self.network.fast(container.veth_device)
+            self._stop(container)
 
-    def partition(self, partitions):
+    def _stop(self, container):
+        self.docker_client.stop(container.container_id, timeout=DEFAULT_KILL_TIMEOUT)
+
+    def start(self, container_names, state):
+        for container in container_names:
+            state = self._start(container, state)
+
+    def _start(self, container, state):
+        container_id = state.container_id(container)
+        if container_id is None:
+            return
+
+        # TODO: determine between create and/or start?
+        self.docker_client.start(container_id)
+        device = self._init_container(container_id, container)
+
+        # update state
+        updated_containers = state.containers
+        updated_containers[container] = {'id': container_id, 'device': device}
+        self.state_factory.update(state.blockade_id, updated_containers)
+
+        # make sure further calls are operating on the updated state
+        return BlockadeState(state.blockade_id, updated_containers)
+
+    def random_partition(self):
         state = self.state_factory.load()
+        containers = [c.name for c in self._get_running_containers(state=state)
+                      if not c.holy]
+
+        # no containers to partition
+        if not containers:
+            return []
+
+        num_containers = len(containers)
+        num_partitions = random.randint(1, num_containers)
+
+        # no partition at all -> join
+        if num_partitions <= 1:
+            self.join()
+            return []
+        else:
+            pick = lambda: containers.pop(random.randint(0, len(containers)-1))
+
+            # pick at least one container for each partition
+            partitions = [[pick()] for _ in xrange(num_partitions)]
+
+            # distribute the rest of the containers among the partitions
+            for _ in xrange(len(containers)):
+                random_partition = random.randint(0, num_partitions-1)
+                partitions[random_partition].append(pick())
+
+            self.partition(partitions, state)
+            return partitions
+
+    def partition(self, partitions, state=None):
+        state = state or self.state_factory.load()
         containers = self._get_running_containers(state=state)
         container_dict = dict((c.name, c) for c in containers)
-        partitions = expand_partitions(list(container_dict.keys()), partitions)
+        partitions = expand_partitions(containers, partitions)
 
         container_partitions = []
         for partition in partitions:
@@ -217,7 +369,7 @@ class Blockade(object):
 
 class Container(object):
     ip_address = None
-    veth_device = None
+    device = None
     network_state = NetworkState.NORMAL
     partition = None
 
@@ -225,56 +377,68 @@ class Container(object):
         self.name = name
         self.container_id = container_id
         self.state = state
+        self.holy = False
+        self.neutral = False
+
         for k, v in kwargs.items():
             setattr(self, k, v)
 
     def to_dict(self):
-        return dict(name=self.name, container_id=self.container_id,
-                    state=self.state, ip_address=self.ip_address,
-                    veth_device=self.veth_device,
+        return dict(name=self.name,
+                    container_id=self.container_id,
+                    state=self.state,
+                    ip_address=self.ip_address,
+                    device=self.device,
                     network_state=self.network_state,
                     partition=self.partition)
 
 
 class ContainerState(object):
+    '''Different possible container states
+    '''
     UP = "UP"
     DOWN = "DOWN"
     MISSING = "MISSING"
 
 
-def docker_container_name(blockade_id, name):
-    return '-'.join((blockade_id, name))
-
-
 def expand_partitions(containers, partitions):
-    """Validate the partitions of containers. If there are any containers
+    '''
+    Validate the partitions of containers. If there are any containers
     not in any partition, place them in an new partition.
-    """
-    all_names = frozenset(containers)
+    '''
+
+    # filter out holy containers that don't belong
+    # to any partition at all
+    all_names = frozenset(c.name for c in containers if not c.holy)
+    holy_names = frozenset(c.name for c in containers if c.holy)
+    neutral_names = frozenset(c.name for c in containers if c.neutral)
     partitions = [frozenset(p) for p in partitions]
 
     unknown = set()
-    overlap = set()
+    holy = set()
     union = set()
 
-    for index, partition in enumerate(partitions):
-        unknown.update(partition - all_names)
+    for partition in partitions:
+        unknown.update(partition - all_names - holy_names)
+        holy.update(partition - all_names)
         union.update(partition)
 
-        for other in partitions[index+1:]:
-            overlap.update(partition.intersection(other))
-
     if unknown:
-        raise BlockadeError("Partitions have unknown containers: %s" %
+        raise BlockadeError('Partitions contain unknown containers: %s' %
                             list(unknown))
 
-    if overlap:
-        raise BlockadeError("Partitions have overlapping containers: %s" %
-                            list(overlap))
+    if holy:
+        raise BlockadeError('Partitions contain holy containers: %s' %
+                            list(holy))
 
     # put any leftover containers in an implicit partition
     leftover = all_names.difference(union)
     if leftover:
         partitions.append(leftover)
+
+    # we create an 'implicit' partition for the neutral containers
+    # in case they are not part of the leftover anyways
+    if not neutral_names.issubset(leftover):
+        partitions.append(neutral_names)
 
     return partitions
