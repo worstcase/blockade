@@ -80,14 +80,7 @@ class Blockade(object):
         vprint('\r')
 
         # try to persist container states
-        try:
-            state = self.state_factory.initialize(container_state, blockade_id)
-        except Exception:
-            # if state persistence failed we rather remove the started containers
-            for container in container_state.values():
-                cid = container['id']
-                self.docker_client.remove_container(cid, force=True)
-            raise
+        state = self.state_factory.initialize(container_state, blockade_id)
 
         container_descriptions = []
         for container in self.config.sorted_containers:
@@ -105,14 +98,9 @@ class Blockade(object):
         try:
             device = self.network.get_container_device(self.docker_client, container_id, container_name)
         except OSError as err:
-            self.docker_client.remove_container(container_id, force=True)
-
             if err.errno in (errno.EACCES, errno.EPERM):
                 msg = "Failed to determine network device of container '%s' [%s]" % (container_name, container_id)
                 raise InsufficientPermissionsError(msg)
-            raise
-        except:
-            self.docker_client.remove_container(container_id, force=True)
             raise
 
         return device
