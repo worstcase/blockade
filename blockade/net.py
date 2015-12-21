@@ -65,7 +65,13 @@ class BlockadeNetwork(object):
     def get_container_device(self, docker_client, container_id, container_name):
         try:
             res = docker_client.execute(container_name, ['ip', 'link', 'show', 'eth0']).decode('utf-8')
-            peer_idx = int(re.search('^([0-9]+):', res).group(1))
+            device = re.search('^([0-9]+):', res)
+            if not device:
+                raise BlockadeError(
+                    "Problem determining host network device for container '%s'" %
+                    (container_id))
+
+            peer_idx = int(device.group(1))
 
             # all my experiments showed the host device index was
             # one greater than its associated container device index
@@ -73,7 +79,13 @@ class BlockadeNetwork(object):
             host_res = subprocess.check_output(['ip', 'link'])
 
             host_rgx = '^%d: ([^:@]+)[:@]' % host_idx
-            host_device = re.search(host_rgx, host_res.decode(), re.M).group(1)
+            host_match = re.search(host_rgx, host_res.decode(), re.M)
+            if not host_match:
+                raise BlockadeError(
+                    "Problem determining host network device for container '%s'" %
+                    (container_id))
+
+            host_device = host_match.group(1)
             return host_device
         except subprocess.CalledProcessError:
             raise BlockadeError(
