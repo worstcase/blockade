@@ -41,6 +41,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.provider :virtualbox do |vb, override|
   end
 
+  # there are obviously vagrant versions with a
+  # broken 'docker' provisioner that can be fixed
+  # by invoking an 'apt-get update' *before* docker itself
+  config.vm.provision "shell", inline: "apt-get update"
+
+  # fetch the ubuntu:latest image that is required for
+  # the test suite
   config.vm.provision "docker",
     images: ["ubuntu"]
 
