@@ -67,6 +67,19 @@ system (``blockade --help``).
 
       --all       Select all containers
 
+``duplicate``
+---------
+
+::
+
+    usage: blockade duplicate [--all] [CONTAINER [CONTAINER ...]]
+
+    Introduce packet duplication into the network of some or all containers
+
+      CONTAINER   Container to select
+
+      --all       Select all containers
+
 ``slow``
 --------
 

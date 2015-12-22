@@ -2,10 +2,6 @@
 Blockade
 ********
 
-    This repository is a fork of the original
-    `blockade <https://github.com/dcm-oss/blockade>`_ developed by
-    `dcm-oss <https://github.com/dcm-oss/>`_.
-
 Blockade is a utility for testing network failures and partitions in
 distributed applications. Blockade uses `Docker <http://www.docker.io>`_
 containers to run application processes and manages the network from

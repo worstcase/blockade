@@ -93,6 +93,14 @@ for details.
 ``ports`` is optional and specifies ports published to the host machine. It is
 a dictionary from external port to internal container port.
 
+``start_delay``
+---------------
+
+``start_delay`` is optional and specifies a number of seconds to wait before
+starting a container. This can be used as a stopgap way to ensure a dependent
+service is running before starting a container.
+
+
 Network
 -------
 

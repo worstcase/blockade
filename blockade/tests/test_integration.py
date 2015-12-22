@@ -141,6 +141,7 @@ class IntegrationTests(unittest.TestCase):
 
             self.call_blockade("-c", config_path, "flaky", "c1")
             self.call_blockade("-c", config_path, "slow", "c2", "c3")
+            self.call_blockade("-c", config_path, "duplicate", "c2", "c3")
             self.call_blockade("-c", config_path, "fast", "c3")
 
             # make sure it is harmless for call fast when nothing is slow

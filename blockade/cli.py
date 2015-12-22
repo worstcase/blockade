@@ -188,7 +188,7 @@ def cmd_fast(opts):
 
 
 def cmd_duplicate(opts):
-    """Introduce packet duplication into the network of some or all container
+    """Introduce packet duplication into the network of some or all containers
     """
     __with_containers(opts, Blockade.duplicate)
 
