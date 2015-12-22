@@ -15,6 +15,7 @@
 #
 
 import collections
+import numbers
 import os
 import re
 
@@ -76,10 +77,10 @@ class BlockadeContainerConfig(object):
             raise BlockadeConfigError("container must not be 'neutral' and 'holy' at the same time")
 
         # check start_delay format
-        if not isinstance(start_delay, int):
-            raise BlockadeConfigError("'start_delay' has to be an integer")
+        if not (isinstance(start_delay, numbers.Number) and start_delay >= 0):
+            raise BlockadeConfigError("'start_delay' must be numeric and non-negative")
 
-        self.start_delay = max(start_delay, 0)
+        self.start_delay = start_delay
 
         # all published ports must also be exposed
         self.expose_ports = list(set(

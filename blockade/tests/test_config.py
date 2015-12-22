@@ -161,6 +161,50 @@ class ConfigTests(unittest.TestCase):
         with self.assertRaises(BlockadeConfigError):
             BlockadeConfig.from_dict(d)
 
+    def test_parse_with_start_delay_1(self):
+        containers = {
+            "c1": {"image": "image1", "command": "/bin/bash",
+                   "start_delay": 3}
+        }
+        d = dict(containers=containers, network={})
+
+        config = BlockadeConfig.from_dict(d)
+        self.assertEqual(len(config.containers), 1)
+        c1 = config.containers['c1']
+        self.assertEqual(c1.start_delay, 3)
+
+    def test_parse_with_start_delay_2(self):
+        containers = {
+            "c1": {"image": "image1", "command": "/bin/bash",
+                   "start_delay": 0.4}
+        }
+        d = dict(containers=containers, network={})
+
+        config = BlockadeConfig.from_dict(d)
+        self.assertEqual(len(config.containers), 1)
+        c1 = config.containers['c1']
+        self.assertEqual(c1.start_delay, 0.4)
+
+    def test_parse_with_start_delay_fail_negative(self):
+        containers = {
+            "c1": {"image": "image1", "command": "/bin/bash",
+                   "start_delay": -4}
+        }
+        d = dict(containers=containers, network={})
+
+        with self.assertRaisesRegexp(BlockadeConfigError, "start_delay"):
+            config = BlockadeConfig.from_dict(d)
+
+    def test_parse_with_start_delay_fail_nonnumeric(self):
+        containers = {
+            "c1": {"image": "image1", "command": "/bin/bash",
+                   "start_delay": "abc123"}
+        }
+        d = dict(containers=containers, network={})
+
+        with self.assertRaisesRegexp(BlockadeConfigError, "start_delay"):
+            config = BlockadeConfig.from_dict(d)
+
     def test_link_ordering_1(self):
         containers = [BlockadeContainerConfig("c1", "image"),
                       BlockadeContainerConfig("c2", "image"),

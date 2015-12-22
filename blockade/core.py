@@ -67,7 +67,7 @@ class Blockade(object):
             # in case a startup delay is configured
             # we have to wait in here
             if container.start_delay > 0:
-                vprint('(delaying for %d seconds)' % (container.start_delay))
+                vprint('(delaying for %s seconds)' % (container.start_delay))
                 time.sleep(container.start_delay)
 
             container_id = self._start_container(container, force)
