@@ -118,7 +118,7 @@ def cmd_up(opts):
     """
     config = load_config(opts.config)
     b = get_blockade(config)
-    containers = b.create(verbose=True, force=opts.force)
+    containers = b.create(verbose=opts.verbose, force=opts.force)
     print_containers(containers, opts.json)
 
 
@@ -270,6 +270,8 @@ def setup_parser():
     parser = argparse.ArgumentParser(description='Blockade')
     parser.add_argument("--config", "-c", metavar="blockade.yaml",
                         help="Config YAML. Looks in CWD if not specified.")
+    parser.add_argument("--verbose", "-v", action="store_true",
+                        help="Print verbose output")
 
     subparsers = parser.add_subparsers(title="commands")
 
