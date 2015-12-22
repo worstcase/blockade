@@ -113,7 +113,7 @@ class Blockade(object):
         # the docker api for port bindings is `internal:external`
         port_bindings = dict((v, k) for k, v in container.publish_ports.items())
 
-        host_config = docker.utils.create_host_config(
+        host_config = self.docker_client.create_host_config(
             binds=container.volumes,
             port_bindings=port_bindings, links=links)
 
