@@ -39,9 +39,14 @@ class BlockadeContainerConfig(object):
         if isinstance(count_value, int):
             count = max(count_value, 1)
 
-        def get_instance(n):
+        def with_index(name, idx):
+            if name and idx:
+                return '%s_%d' % (name, idx)
+            return name
+
+        def get_instance(n, idx=None):
             return BlockadeContainerConfig(
-                n,
+                with_index(n, idx),
                 values['image'],
                 command=values.get('command'),
                 links=values.get('links'),
@@ -53,14 +58,14 @@ class BlockadeContainerConfig(object):
                 start_delay=values.get('start_delay', 0),
                 neutral=values.get('neutral', False),
                 holy=values.get('holy', False),
-                container_name=values.get('container_name'))
+                container_name=with_index(values.get('container_name'), idx))
 
         if count == 1:
             yield get_instance(name)
         else:
             for idx in xrange(1, count+1):
                 # TODO: configurable name/index format
-                yield get_instance('%s_%d' % (name, idx))
+                yield get_instance(name, idx)
 
     def __init__(self, name, image, command=None, links=None, volumes=None,
                  publish_ports=None, expose_ports=None, environment=None,
@@ -116,6 +121,12 @@ class BlockadeConfig(object):
                     # one config entry might result in many container
                     # instances (indicated by the 'count' config value)
                     for cnt in BlockadeContainerConfig.from_dict(name, container_dict):
+                        # check for duplicate 'container_name' definitions
+                        if cnt.container_name:
+                            cname = cnt.container_name
+                            existing = [c for c in parsed_containers.values() if c.container_name == cname]
+                            if existing:
+                                raise BlockadeConfigError("Duplicate 'container_name' definition: %s" % (cname))
                         parsed_containers[cnt.name] = cnt
                 except Exception as err:
                     raise BlockadeConfigError(
