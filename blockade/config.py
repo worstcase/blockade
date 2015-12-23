@@ -15,7 +15,6 @@
 #
 
 import collections
-import itertools
 import numbers
 import os
 import re
@@ -125,9 +124,8 @@ class BlockadeConfig(object):
                         # check for duplicate 'container_name' definitions
                         if cnt.container_name:
                             cname = cnt.container_name
-                            exists = next(itertools.ifilter(
-                                lambda c: c.container_name == cname, parsed_containers.values()), None)
-                            if exists:
+                            existing = [c for c in parsed_containers.values() if c.container_name == cname]
+                            if existing:
                                 raise BlockadeConfigError("Duplicate 'container_name' definition: %s" % (cname))
                         parsed_containers[cnt.name] = cnt
                 except Exception as err:
