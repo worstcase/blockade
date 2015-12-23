@@ -240,7 +240,7 @@ class NetTests(unittest.TestCase):
                 # at any container not in this partition
                 mock.call(["iptables", "-I", "blockade-e5dcf85cd2-p1",
                            "-d", "10.0.1.3", "-j", "DROP"])
-            ])
+            ], any_order=True)
 
             mock_subprocess.check_call.assert_has_calls([
                 # now repeat the process for the second partition
@@ -251,7 +251,7 @@ class NetTests(unittest.TestCase):
                            "-d", "10.0.1.1", "-j", "DROP"]),
                 mock.call(["iptables", "-I", "blockade-e5dcf85cd2-p2",
                            "-d", "10.0.1.2", "-j", "DROP"]),
-            ])
+            ], any_order=True)
 
     def test_network_already_normal(self):
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
