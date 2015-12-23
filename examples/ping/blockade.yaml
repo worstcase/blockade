@@ -9,11 +9,14 @@ containers:
   c2:
     image: ubuntu
     hostname: c2
-    command: sh -c "ping -i5 $C1_PORT_10000_TCP_ADDR"
+    command: sh -c "ping -i1 $C1_PORT_10000_TCP_ADDR"
     links: ["c1"]
 
   c3:
     image: ubuntu
     hostname: c3
-    command: sh -c "ping -i5 $C1_PORT_10000_TCP_ADDR"
+    command: sh -c "ping -i1 $C1_PORT_10000_TCP_ADDR"
     links: ["c1"]
+
+network:
+  duplicate: 50%

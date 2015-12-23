@@ -28,6 +28,7 @@ from clint.textui.colored import ColoredString
 
 from blockade.tests import unittest
 import blockade.cli
+from .util import wait
 
 
 INT_ENV = "BLOCKADE_INTEGRATION_TESTS"
@@ -219,6 +220,35 @@ class IntegrationTests(unittest.TestCase):
 
             # could actually try to parse out the logs here and assert that
             # network filters are working.
+
+        finally:
+            try:
+                self.call_blockade("-c", config_path, "destroy")
+            except Exception:
+                print("Failed to destroy Blockade!")
+                traceback.print_exc(file=sys.stdout)
+
+    @unittest.skipIf(*INT_SKIP)
+    def test_duplicate(self):
+        config_path = example_config_path("ping/blockade.yaml")
+
+        try:
+            self.call_blockade("-c", config_path, "up")
+
+            self.call_blockade("-c", config_path, "status")
+            stdout, _ = self.call_blockade("-c", config_path, "status",
+                                           "--json")
+            parsed = json.loads(stdout)
+            self.assertEqual(len(parsed), 3)
+
+            self.call_blockade("-c", config_path, "duplicate", "c2")
+
+            def predicate():
+                stdout, _ = self.call_blockade("-c", config_path, "logs", "c2")
+                return "DUP!" in stdout
+
+            # wait for a duplicate packet to show up in the ping output
+            wait(predicate, wait=1, timeout=60)
 
         finally:
             try:
