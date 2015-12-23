@@ -63,7 +63,7 @@ class BlockadeContainerConfig(object):
         if count == 1:
             yield get_instance(name)
         else:
-            for idx in xrange(1, count+1):
+            for idx in range(1, count+1):
                 # TODO: configurable name/index format
                 yield get_instance(name, idx)
 

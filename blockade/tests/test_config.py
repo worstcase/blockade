@@ -207,7 +207,7 @@ class ConfigTests(unittest.TestCase):
         d = dict(containers=containers, network={})
 
         with self.assertRaisesRegexp(BlockadeConfigError, "start_delay"):
-            config = BlockadeConfig.from_dict(d)
+            BlockadeConfig.from_dict(d)
 
     def test_parse_with_start_delay_fail_nonnumeric(self):
         containers = {
@@ -217,7 +217,22 @@ class ConfigTests(unittest.TestCase):
         d = dict(containers=containers, network={})
 
         with self.assertRaisesRegexp(BlockadeConfigError, "start_delay"):
-            config = BlockadeConfig.from_dict(d)
+            BlockadeConfig.from_dict(d)
+
+    def test_parse_with_count_1(self):
+        containers = {
+            "db": {"image": "image1", "command": "/bin/bash", "count": 2},
+            "app": {"image": "image1", "command": "/bin/bash",
+                    "container_name": "abc", "count": 3}
+        }
+        d = dict(containers=containers, network={})
+
+        config = BlockadeConfig.from_dict(d)
+        self.assertEqual(set(config.containers.keys()),
+                         set(["db_1", "db_2", "app_1", "app_2", "app_3"]))
+        self.assertEqual(config.containers["app_1"].container_name, "abc_1")
+        self.assertEqual(config.containers["app_2"].container_name, "abc_2")
+        self.assertEqual(config.containers["app_3"].container_name, "abc_3")
 
     def test_link_ordering_1(self):
         containers = [BlockadeContainerConfig("c1", "image"),

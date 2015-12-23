@@ -100,12 +100,20 @@ a dictionary from external port to internal container port.
 starting a container. This can be used as a stopgap way to ensure a dependent
 service is running before starting a container.
 
+``count``
+---------
+``count`` is optional and specifies the number of copies of the container to
+launch.
+
 ``container_name``
 ------------------
 
 ``container_name`` is optional and specifies a custom container name, instead
 of letting blockade generate one. Use caution with this setting, because Docker
 enforces uniqueness of names across all containers.
+
+When this parameter is combined with ``count``, an underscore and index will
+be suffixed to this name. For example "app" becomes "app_1", "app_2", etc.
 
 
 Network
