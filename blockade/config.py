@@ -15,6 +15,7 @@
 #
 
 import collections
+import itertools
 import numbers
 import os
 import re
@@ -116,6 +117,13 @@ class BlockadeConfig(object):
                     # one config entry might result in many container
                     # instances (indicated by the 'count' config value)
                     for cnt in BlockadeContainerConfig.from_dict(name, container_dict):
+                        # check for duplicate 'container_name' definitions
+                        if cnt.container_name:
+                            cname = cnt.container_name
+                            exists = next(itertools.ifilter(
+                                lambda c: c.container_name == cname, parsed_containers.values()), None)
+                            if exists:
+                                raise BlockadeConfigError("Duplicate 'container_name' definition: %s" % (cname))
                         parsed_containers[cnt.name] = cnt
                 except Exception as err:
                     raise BlockadeConfigError(
