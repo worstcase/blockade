@@ -52,7 +52,7 @@ class BlockadeStateTests(unittest.TestCase):
         self.assertIsNot(state.containers, containers)
         self.assertIsNot(state.containers["n2"], containers["n2"])
 
-        self.assertRegexpMatches(state.blockade_id, "^blockade-")
+        self.assertRegexpMatches(state.blockade_id, "^[a-z0-9]+$")
 
         state2 = BlockadeStateFactory.load()
         self.assertEqual(state2.containers, state.containers)
@@ -67,3 +67,14 @@ class BlockadeStateTests(unittest.TestCase):
     def test_state_uninitialized(self):
         with self.assertRaises(NotInitializedError):
             BlockadeStateFactory.load()
+
+
+class BlockadeIdTests(unittest.TestCase):
+    def test_blockade_id(self):
+        get_blockade_id = BlockadeStateFactory.get_blockade_id
+        self.assertEqual(get_blockade_id(cwd="/abs/path/1234"), "1234")
+        self.assertEqual(get_blockade_id(cwd="rel/path/abc"), "abc")
+
+        # invalid names should be replaced with "default"
+        self.assertEqual(get_blockade_id(cwd="/"), "default")
+        self.assertEqual(get_blockade_id(cwd="rel/path/$$("), "default")

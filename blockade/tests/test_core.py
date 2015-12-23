@@ -37,11 +37,12 @@ class BlockadeCoreTests(unittest.TestCase):
                       'c3': BlockadeContainerConfig("c3", "image")}
         config = BlockadeConfig(containers)
 
-        self.network.get_container_device.side_effect = lambda dc, x, y: "veth"+y
+        self.network.get_container_device.side_effect = lambda dc, y: "veth"+y
 
         initialize = lambda x, y: BlockadeState("ourblockadeid", x)
         self.state_factory.initialize.side_effect = initialize
         self.state_factory.exists.side_effect = lambda: False
+        self.state_factory.get_blockade_id = mock.MagicMock(return_value="ourblockadeid")
         self.docker_client.create_container.side_effect = [
             {"Id": "container1"},
             {"Id": "container2"},

@@ -118,7 +118,8 @@ def cmd_up(opts):
     """
     config = load_config(opts.config)
     b = get_blockade(config)
-    containers = b.create(verbose=opts.verbose, force=opts.force)
+    containers = b.create(blockade_id=opts.name, verbose=opts.verbose,
+                          force=opts.force)
     print_containers(containers, opts.json)
 
 
@@ -285,10 +286,14 @@ def setup_parser():
         command_parsers[command] = subparser
 
     # add additional parameters to some commands
-    _add_output_options(command_parsers["up"])
-    command_parsers["up"].add_argument("-f", "--force",
-                                       action='store_true',
-                                       help='try to remove any conflicting containers if necessary')
+    up_parser = command_parsers["up"]
+    _add_output_options(up_parser)
+    up_parser.add_argument("-f", "--force",
+                           action="store_true",
+                           help="Try to remove any conflicting containers if necessary")
+    up_parser.add_argument("-n", "--name", metavar="NAME",
+                           help="Unique name for blockade. "
+                           "Default: basename of working directory")
 
     _add_output_options(command_parsers["status"])
 

@@ -100,6 +100,13 @@ a dictionary from external port to internal container port.
 starting a container. This can be used as a stopgap way to ensure a dependent
 service is running before starting a container.
 
+``container_name``
+------------------
+
+``container_name`` is optional and specifies a custom container name, instead
+of letting blockade generate one. Use caution with this setting, because Docker
+enforces uniqueness of names across all containers.
+
 
 Network
 -------

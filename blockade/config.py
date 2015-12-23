@@ -52,7 +52,8 @@ class BlockadeContainerConfig(object):
                 hostname=values.get('hostname'),
                 start_delay=values.get('start_delay', 0),
                 neutral=values.get('neutral', False),
-                holy=values.get('holy', False))
+                holy=values.get('holy', False),
+                container_name=values.get('container_name'))
 
         if count == 1:
             yield get_instance(name)
@@ -62,7 +63,9 @@ class BlockadeContainerConfig(object):
                 yield get_instance('%s_%d' % (name, idx))
 
     def __init__(self, name, image, command=None, links=None, volumes=None,
-                 publish_ports=None, expose_ports=None, environment=None, hostname=None, start_delay=0, neutral=False, holy=False):
+                 publish_ports=None, expose_ports=None, environment=None,
+                 hostname=None, start_delay=0, neutral=False, holy=False,
+                 container_name=None):
         self.name = name
         self.hostname = hostname
         self.image = image
@@ -72,6 +75,7 @@ class BlockadeContainerConfig(object):
         self.publish_ports = _dictify(publish_ports, 'ports')
         self.neutral = neutral
         self.holy = holy
+        self.container_name = container_name
 
         if neutral and holy:
             raise BlockadeConfigError("container must not be 'neutral' and 'holy' at the same time")

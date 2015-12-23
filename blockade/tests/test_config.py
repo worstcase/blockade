@@ -143,6 +143,20 @@ class ConfigTests(unittest.TestCase):
         c1 = config.containers['c1']
         self.assertEqual(c1.expose_ports, [10000])
 
+    def test_parse_with_name(self):
+        containers = {
+            "c1": {"image": "image1", "command": "/bin/bash",
+                   "container_name": "abc"}
+        }
+        network = {}
+        d = dict(containers=containers, network=network)
+
+        config = BlockadeConfig.from_dict(d)
+        # default value should be there
+        self.assertEqual(len(config.containers), 1)
+        c1 = config.containers['c1']
+        self.assertEqual(c1.container_name, "abc")
+
     def test_parse_fail_1(self):
         containers = {
             "c1": {"image": "image1", "command": "/bin/bash"},

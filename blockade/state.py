@@ -14,10 +14,10 @@
 # limitations under the License.
 #
 
-import uuid
 import os
 import errno
 from copy import deepcopy
+import re
 
 import yaml
 
@@ -26,7 +26,6 @@ from .errors import AlreadyInitializedError, NotInitializedError, \
 
 BLOCKADE_STATE_DIR = ".blockade"
 BLOCKADE_STATE_FILE = ".blockade/state.yml"
-BLOCKADE_ID_PREFIX = "blockade-"
 BLOCKADE_STATE_VERSION = 1
 
 
@@ -86,9 +85,18 @@ class BlockadeStateFactory(object):
     '''Blockade state related functionality'''
 
     @staticmethod
-    def get_blockade_id():
-        '''Generate a new random blockade ID'''
-        return BLOCKADE_ID_PREFIX + uuid.uuid4().hex[:10]
+    def get_blockade_id(cwd=None):
+        '''Generate a new blockade ID based on the CWD'''
+
+        if cwd is None:
+            cwd = os.getcwd()
+        # this follows a similar pattern as docker-compose uses
+        parent_dir = os.path.abspath(cwd)
+        basename = os.path.basename(parent_dir).lower()
+        blockade_id = re.sub(r"[^a-z0-9]", "", basename)
+        if not blockade_id:  # if we can't get a valid name from CWD, use "default"
+            blockade_id = "default"
+        return blockade_id
 
     @staticmethod
     def initialize(containers, blockade_id=None):
@@ -131,6 +139,7 @@ class BlockadeStateFactory(object):
         except Exception as err:
             raise InconsistentStateError("Failed to load Blockade state: "
                                          + str(err))
+
     @staticmethod
     def destroy():
         '''Try to remove the current state file and directory'''

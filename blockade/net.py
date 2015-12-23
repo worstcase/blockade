@@ -62,9 +62,9 @@ class BlockadeNetwork(object):
     def get_ip_partitions(self, blockade_id):
         return iptables_get_source_chains(blockade_id)
 
-    def get_container_device(self, docker_client, container_id, container_name):
+    def get_container_device(self, docker_client, container_id):
         try:
-            exec_handle = docker_client.exec_create(container_name, ['ip', 'link', 'show', 'eth0'])
+            exec_handle = docker_client.exec_create(container_id, ['ip', 'link', 'show', 'eth0'])
             res = docker_client.exec_start(exec_handle).decode('utf-8')
             device = re.search('^([0-9]+):', res)
             if not device:

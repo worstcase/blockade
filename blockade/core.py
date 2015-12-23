@@ -18,6 +18,7 @@ from __future__ import print_function
 
 import errno
 import random
+import re
 import sys
 import time
 
@@ -44,9 +45,16 @@ class Blockade(object):
         self.network = network or BlockadeNetwork(config)
         self.docker_client = docker_client or docker.Client()
 
-    def create(self, verbose=False, force=False):
+    def create(self, blockade_id=None, verbose=False, force=False):
         container_state = {}
-        blockade_id = self.state_factory.get_blockade_id()
+
+        if blockade_id:
+            if re.match(r"^[a-zA-Z0-9-.]+$", blockade_id) is None:
+                raise BlockadeError("'%s' is an invalid blockade ID. "
+                                    "You may use only [a-zA-Z0-9-.]")
+        else:
+            blockade_id = self.state_factory.get_blockade_id()
+
         num_containers = len(self.config.sorted_containers)
 
         # we can check if a state file already exists beforehand
@@ -70,7 +78,7 @@ class Blockade(object):
                 vprint('(delaying for %s seconds)' % (container.start_delay))
                 time.sleep(container.start_delay)
 
-            container_id = self._start_container(container, force)
+            container_id = self._start_container(blockade_id, container, force)
             device = self._init_container(container_id, name)
 
             # store device in state file
@@ -96,7 +104,7 @@ class Blockade(object):
         # deprecated since docker > 1.6
         device = None
         try:
-            device = self.network.get_container_device(self.docker_client, container_id, container_name)
+            device = self.network.get_container_device(self.docker_client, container_id)
         except OSError as err:
             if err.errno in (errno.EACCES, errno.EPERM):
                 msg = "Failed to determine network device of container '%s' [%s]" % (container_name, container_id)
@@ -105,9 +113,10 @@ class Blockade(object):
 
         return device
 
-    def _start_container(self, container, force=False):
+    def _start_container(self, blockade_id, container, force=False):
+        container_name = container.container_name or docker_container_name(blockade_id, container.name)
         volumes = list(container.volumes.values()) or None
-        links = dict((link, alias)
+        links = dict((docker_container_name(blockade_id, link), alias)
                      for link, alias in container.links.items())
 
         # the docker api for port bindings is `internal:external`
@@ -122,12 +131,13 @@ class Blockade(object):
             response = self.docker_client.create_container(
                 container.image,
                 command=container.command,
-                name=container.name,
+                name=container_name,
                 ports=container.expose_ports,
                 volumes=volumes,
                 hostname=container.hostname,
                 environment=container.environment,
-                host_config=host_config)
+                host_config=host_config,
+                labels={"blockade.id": blockade_id})
 
             return response['Id']
 
@@ -137,7 +147,7 @@ class Blockade(object):
             if err.response.status_code == 409 and err.is_client_error():
                 # if force is set we are retrying after removing the
                 # container with that name first
-                if force and self.__try_remove_container(container.name):
+                if force and self.__try_remove_container(container_name):
                     container_id = create_container()
                 else:
                     raise BlockadeContainerConflictError(err)
@@ -218,10 +228,16 @@ class Blockade(object):
 
     def _get_docker_containers(self, state):
         containers = {}
-        for container in self.docker_client.containers(all=True):
+        filters = {"label": ["blockade.id=" + state.blockade_id]}
+        prefix = state.blockade_id + "_"
+        for container in self.docker_client.containers(all=True, filters=filters):
             for name in container['Names']:
                 # strip leading '/'
                 name = name[1:] if name[0] == '/' else name
+
+                # strip prefix. containers will have these UNLESS `container_name`
+                # was specified in the config
+                name = name[len(prefix):] if name.startswith(prefix) else name
                 if name in state.containers:
                     containers[name] = container
                     break
@@ -399,6 +415,10 @@ class ContainerState(object):
     UP = "UP"
     DOWN = "DOWN"
     MISSING = "MISSING"
+
+
+def docker_container_name(blockade_id, name):
+    return '_'.join((blockade_id, name))
 
 
 def expand_partitions(containers, partitions):
