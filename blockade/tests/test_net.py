@@ -214,6 +214,45 @@ class NetTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_partition_index(blockade_id, "abc123-notanumber")
 
+    def test_partition_1(self):
+        blockade_id = "e5dcf85cd2"
+        with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_subprocess.check_output.return_value = ""
+
+            blockade.net.partition_containers(blockade_id, [
+                # partition 1
+                [mock.Mock(name="c1", ip_address="10.0.1.1"),
+                mock.Mock(name="c2", ip_address="10.0.1.2")],
+                # partition 2
+                [mock.Mock(name="c3", ip_address="10.0.1.3")]])
+
+            mock_subprocess.check_call.assert_has_calls([
+                # create a chain for each partition
+                mock.call(["iptables", "-N", "blockade-e5dcf85cd2-p1"]),
+
+                # forward traffic from each node in p1 to its new chain
+                mock.call(["iptables", "-I", "FORWARD", "-s", "10.0.1.1",
+                           "-j", "blockade-e5dcf85cd2-p1"]),
+                mock.call(["iptables", "-I", "FORWARD", "-s", "10.0.1.2",
+                           "-j", "blockade-e5dcf85cd2-p1"]),
+
+                # and drop any traffic from this partition directed
+                # at any container not in this partition
+                mock.call(["iptables", "-I", "blockade-e5dcf85cd2-p1",
+                           "-d", "10.0.1.3", "-j", "DROP"])
+            ])
+
+            mock_subprocess.check_call.assert_has_calls([
+                # now repeat the process for the second partition
+                mock.call(["iptables", "-N", "blockade-e5dcf85cd2-p2"]),
+                mock.call(["iptables", "-I", "FORWARD", "-s", "10.0.1.3",
+                           "-j", "blockade-e5dcf85cd2-p2"]),
+                mock.call(["iptables", "-I", "blockade-e5dcf85cd2-p2",
+                           "-d", "10.0.1.1", "-j", "DROP"]),
+                mock.call(["iptables", "-I", "blockade-e5dcf85cd2-p2",
+                           "-d", "10.0.1.2", "-j", "DROP"]),
+            ])
+
     def test_network_already_normal(self):
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
             mock_subprocess.CalledProcessError = subprocess.CalledProcessError
@@ -227,6 +266,39 @@ class NetTests(unittest.TestCase):
             net.fast('somedevice')
             self.assertIn('somedevice',
                           mock_subprocess.Popen.call_args[0][0])
+
+    def test_slow(self):
+        slow_config = "75ms 100ms distribution normal"
+        with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_config = mock.Mock()
+            mock_config.network = {"slow": slow_config}
+            net = BlockadeNetwork(mock_config)
+            net.slow("mydevice")
+            mock_subprocess.check_call.assert_called_once_with(
+                ["tc", "qdisc", "replace", "dev", "mydevice",
+               "root", "netem", "delay"] + slow_config.split())
+
+    def test_flaky(self):
+        flaky_config = "30%"
+        with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_config = mock.Mock()
+            mock_config.network = {"flaky": flaky_config}
+            net = BlockadeNetwork(mock_config)
+            net.flaky("mydevice")
+            mock_subprocess.check_call.assert_called_once_with(
+                ["tc", "qdisc", "replace", "dev", "mydevice",
+               "root", "netem", "loss"] + flaky_config.split())
+
+    def test_duplicate(self):
+        duplicate_config = "5%"
+        with mock.patch('blockade.net.subprocess') as mock_subprocess:
+            mock_config = mock.Mock()
+            mock_config.network = {"duplicate": duplicate_config}
+            net = BlockadeNetwork(mock_config)
+            net.duplicate("mydevice")
+            mock_subprocess.check_call.assert_called_once_with(
+                ["tc", "qdisc", "replace", "dev", "mydevice",
+               "root", "netem", "duplicate"] + duplicate_config.split())
 
     def test_network_state_slow(self):
         self._network_state(NetworkState.SLOW, SLOW_QDISC_SHOW)
