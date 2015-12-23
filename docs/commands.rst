@@ -43,6 +43,45 @@ system (``blockade --help``).
     optional arguments:
       --json      Output in JSON format
 
+``start``
+----------
+
+::
+
+    usage: blockade start [--all] [CONTAINER [CONTAINER ...]]
+
+    Start some or all containers
+
+      CONTAINER   Container to select
+
+      --all       Select all containers
+
+``stop``
+----------
+
+::
+
+    usage: blockade stop [--all] [CONTAINER [CONTAINER ...]]
+
+    Stop some or all containers
+
+      CONTAINER   Container to select
+
+      --all       Select all containers
+
+``restart``
+----------
+
+::
+
+    usage: blockade restart [--all] [CONTAINER [CONTAINER ...]]
+
+    Restart some or all containers
+
+      CONTAINER   Container to select
+
+      --all       Select all containers
+
 ``logs``
 --------
 

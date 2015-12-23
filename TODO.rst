@@ -14,15 +14,6 @@ is a Blockade Remote API that runs on the VM and is usable from an
 OSX client (similar to how Docker itself works).
 
 
-support for starting/stopping containers
-----------------------------------------
-
-This might be best done by way of a supervisor process within the container.
-Otherwise when restarted, we might have a different IP. A better solution
-might be to find a way to force the restarted containers IP, or use a full
-network overlay such as `Pipework <https://github.com/jpetazzo/pipework>`_.
-
-
 more flexible partitioning
 --------------------------
 
