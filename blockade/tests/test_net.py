@@ -97,7 +97,7 @@ target     prot opt source               destination
 
 class NetTests(unittest.TestCase):
     def test_iptables_get_blockade_chains(self):
-        blockade_id = "blockade-e5dcf85cd2"
+        blockade_id = "e5dcf85cd2"
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
             mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             mock_check_output = mock_subprocess.check_output
@@ -108,7 +108,7 @@ class NetTests(unittest.TestCase):
             self.assertEqual(result, {"172.17.0.162": 1, "172.17.0.164": 1})
 
     def test_iptables_delete_blockade_rules_1(self):
-        blockade_id = "blockade-e5dcf85cd2"
+        blockade_id = "e5dcf85cd2"
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
             mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             mock_check_output = mock_subprocess.check_output
@@ -124,7 +124,7 @@ class NetTests(unittest.TestCase):
                              expected_calls)
 
     def test_iptables_delete_blockade_rules_2(self):
-        blockade_id = "blockade-e5dcf85cd2"
+        blockade_id = "e5dcf85cd2"
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
             mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             mock_check_output = mock_subprocess.check_output
@@ -135,7 +135,7 @@ class NetTests(unittest.TestCase):
             self.assertEqual(mock_subprocess.check_call.call_count, 0)
 
     def test_iptables_delete_blockade_chains_1(self):
-        blockade_id = "blockade-e5dcf85cd2"
+        blockade_id = "e5dcf85cd2"
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
             mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             mock_subprocess.check_output.return_value = _IPTABLES_LIST_1
@@ -152,7 +152,7 @@ class NetTests(unittest.TestCase):
                              expected_calls)
 
     def test_iptables_delete_blockade_chains_2(self):
-        blockade_id = "blockade-e5dcf85cd2"
+        blockade_id = "e5dcf85cd2"
         with mock.patch('blockade.net.subprocess') as mock_subprocess:
             mock_subprocess.CalledProcessError = subprocess.CalledProcessError
             mock_subprocess.check_output.return_value = _IPTABLES_LIST_2
@@ -198,8 +198,8 @@ class NetTests(unittest.TestCase):
 
     def test_partition_chain_parse(self):
         blockade_id = "abc123"
-        self.assertEqual(partition_chain_name(blockade_id, 1), "abc123-p1")
-        self.assertEqual(partition_chain_name(blockade_id, 2), "abc123-p2")
+        self.assertEqual(partition_chain_name(blockade_id, 1), "blockade-abc123-p1")
+        self.assertEqual(partition_chain_name(blockade_id, 2), "blockade-abc123-p2")
 
         index = parse_partition_index(blockade_id,
                                       partition_chain_name(blockade_id, 1))

@@ -21,6 +21,8 @@ import subprocess
 from .errors import BlockadeError, InsufficientPermissionsError
 import collections
 
+BLOCKADE_CHAIN_PREFIX = "blockade-"
+
 
 class NetworkState(object):
     NORMAL = "NORMAL"
@@ -95,7 +97,7 @@ class BlockadeNetwork(object):
 
 
 def parse_partition_index(blockade_id, chain):
-    prefix = "%s-p" % (blockade_id,)
+    prefix = "%s%s-p" % (BLOCKADE_CHAIN_PREFIX, blockade_id)
     if chain and chain.startswith(prefix):
         try:
             return int(chain[len(prefix):])
@@ -105,7 +107,7 @@ def parse_partition_index(blockade_id, chain):
 
 
 def partition_chain_name(blockade_id, partition_index):
-    return "%s-p%s" % (blockade_id, partition_index)
+    return "%s%s-p%s" % (BLOCKADE_CHAIN_PREFIX, blockade_id, partition_index)
 
 
 def iptables_call_output(*args):
