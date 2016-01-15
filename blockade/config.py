@@ -55,6 +55,7 @@ class BlockadeContainerConfig(object):
                 expose_ports=values.get('expose'),
                 environment=values.get('environment'),
                 hostname=values.get('hostname'),
+                dns=values.get('dns'),
                 start_delay=values.get('start_delay', 0),
                 neutral=values.get('neutral', False),
                 holy=values.get('holy', False),
@@ -69,10 +70,11 @@ class BlockadeContainerConfig(object):
 
     def __init__(self, name, image, command=None, links=None, volumes=None,
                  publish_ports=None, expose_ports=None, environment=None,
-                 hostname=None, start_delay=0, neutral=False, holy=False,
-                 container_name=None):
+                 hostname=None, dns=None, start_delay=0, neutral=False,
+                 holy=False, container_name=None):
         self.name = name
         self.hostname = hostname
+        self.dns = dns
         self.image = image
         self.command = command
         self.links = _dictify(links, 'links')

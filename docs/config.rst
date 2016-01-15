@@ -105,6 +105,11 @@ a dictionary from external port to internal container port.
 ``hostname`` is optional and gives the ability to redefine hostname of
 a container.
 
+``dns``
+---------
+
+``dns`` is optional and specifies a list of DNS-servers for container.
+
 ``start_delay``
 ---------------
 
