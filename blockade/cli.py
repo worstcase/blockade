@@ -116,9 +116,9 @@ def _add_container_selection_options(parser):
 
 
 def _check_container_selections(opts):
-    if opts.containers and (opts.all or opts.random):
+    if opts.containers and opts.all:
         raise BlockadeError("Either specify individual containers "
-                            "or --all or --random, but not both")
+                            "or --all, but not both")
     elif opts.all and opts.random:
         raise BlockadeError("Specify either --all or --random, but not both")
     elif not (opts.containers or opts.all or opts.random):
@@ -160,13 +160,10 @@ def __with_containers(opts, func, **kwargs):
     b.state.load()
 
     configured_containers = set(b.state.containers.keys())
-    container_names = configured_containers if select_all or select_random else configured_containers.intersection(containers)
+    container_names = configured_containers if select_all or (select_random and not containers) else configured_containers.intersection(containers)
 
     if len(container_names) > 0:
-        # TODO: this random selection is not 100% accurate yet
-        # as we might end up trying to i.e. restart a stopped container
-        if select_random:
-            container_names = set([random.choice(list(container_names))])
+        kwargs['select_random'] = select_random
         return func(b, container_names, **kwargs)
     else:
         raise BlockadeError('selection does not match any container')
