@@ -93,6 +93,18 @@ for details.
 ``ports`` is optional and specifies ports published to the host machine. It is
 a dictionary from external port to internal container port.
 
+``environment``
+---------
+
+``environment`` is optional and specifies environment variables for
+``command``. See more details in ``command`` section above.
+
+``hostname``
+---------
+
+``hostname`` is optional and gives the ability to redefine hostname of
+a container.
+
 ``start_delay``
 ---------------
 
