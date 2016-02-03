@@ -151,7 +151,7 @@ but the simplified pattern is::
 
 
 
-.. _Docker run: http://docs.docker.io/en/latest/reference/run/
-.. _Docker volumes: http://docs.docker.io/en/latest/use/working_with_volumes
-.. _named links: http://docs.docker.io/en/latest/use/working_with_links_names/
+.. _Docker run: https://docs.docker.com/engine/reference/run/
+.. _Docker volumes: https://docs.docker.com/engine/userguide/dockervolumes/
+.. _named links: https://docs.docker.com/engine/userguide/networking/default_network/dockerlinks/
 .. _tc netem: http://man7.org/linux/man-pages/man8/tc-netem.8.html
