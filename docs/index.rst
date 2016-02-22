@@ -62,8 +62,8 @@ Blockade is offered under the Apache License 2.0.
 .. toctree::
    :hidden:
 
-.. _Docker: http://www.docker.io
-.. _named links: http://docs.docker.io/en/latest/use/working_with_links_names/
+.. _Docker: https://www.docker.com
+.. _named links: https://docs.docker.com/engine/userguide/networking/default_network/dockerlinks/
 .. _Dell Cloud Manager: http://www.enstratius.com
 .. _Dasein Cloud: http://dasein.org
 .. _Jepsen: http://aphyr.com/tags/jepsen

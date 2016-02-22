@@ -214,5 +214,5 @@ Next steps
 
 Next, check out the reference details in :ref:`config` and :ref:`commands`.
 
-.. _Docker installation docs: http://docs.docker.io/en/latest/installation/
-.. _named links: http://docs.docker.io/en/latest/use/working_with_links_names/
+.. _Docker installation docs: https://docs.docker.com/engine/installation/
+.. _named links: https://docs.docker.com/engine/userguide/networking/default_network/dockerlinks/
