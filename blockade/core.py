@@ -123,7 +123,7 @@ class Blockade(object):
         port_bindings = dict((v, k) for k, v in container.publish_ports.items())
 
         host_config = self.docker_client.create_host_config(
-            binds=container.volumes,
+            binds=container.volumes, dns=container.dns,
             port_bindings=port_bindings, links=links)
 
         def create_container():
