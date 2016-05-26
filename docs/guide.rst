@@ -38,17 +38,17 @@ these contents:
 
     containers:
       c1:
-        image: ubuntu
+        image: ubuntu:trusty
         command: /bin/sleep 300000
         ports: [10000]
 
       c2:
-        image: ubuntu
+        image: ubuntu:trusty
         command: sh -c "ping $C1_PORT_10000_TCP_ADDR"
         links: ["c1"]
 
       c3:
-        image: ubuntu
+        image: ubuntu:trusty
         command: sh -c "ping $C1_PORT_10000_TCP_ADDR"
         links: ["c1"]
 
@@ -56,8 +56,8 @@ these contents:
 This configuration specifies the three containers we described above. Note
 that we rely on Docker `named links`_ which require at least one open port.
 Hence our sleeping ``c1`` container has a fake port 10000 open.
-The ``ubuntu`` image must exist in your Docker installation.
-You can download it using the docker pull command ``sudo docker pull ubuntu``.
+The ``ubuntu:trusty`` image must exist in your Docker installation.
+You can download it using the docker pull command ``sudo docker pull ubuntu:trusty``.
 
 Start the Blockade
 ------------------

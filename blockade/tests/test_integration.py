@@ -173,11 +173,11 @@ class IntegrationTests(unittest.TestCase):
                 f.write(dedent('''\
                     containers:
                       zzz:
-                        image: ubuntu
+                        image: ubuntu:trusty
                         command: sleep infinity
                         expose: [10000]
                       aaa:
-                        image: ubuntu
+                        image: ubuntu:trusty
                         command: sleep infinity
                         links: ["zzz"]
                     '''))

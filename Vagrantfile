@@ -49,7 +49,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # fetch the ubuntu:latest image that is required for
   # the test suite
   config.vm.provision "docker",
-    images: ["ubuntu"]
+    images: ["ubuntu:trusty"]
 
   # kick off the tests automatically
   config.vm.provision "shell", inline: script
