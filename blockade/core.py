@@ -302,6 +302,14 @@ class Blockade(object):
             self._stop(container)
             state = self._start(container.name, state)
 
+    def kill(self, container_names, state, signal="SIGKILL"):
+        containers = self._get_running_containers(container_names, state)
+        for container in containers:
+            self._kill(container, signal)
+
+    def _kill(self, container, signal):
+        self.docker_client.kill(container.container_id, signal)
+
     def stop(self, container_names, state):
         containers = self._get_running_containers(container_names, state)
         for container in containers:

@@ -149,7 +149,9 @@ def __with_containers(opts, func):
     configured_containers = set(state.containers.keys())
     container_names = configured_containers if select_all or None else configured_containers.intersection(containers)
 
-    if len(container_names) > 0:
+    if len(container_names) > 0 and hasattr(opts, 'signal'):
+        return func(b, container_names, state, signal=opts.signal)
+    elif len(container_names) > 0:
         return func(b, container_names, state)
     else:
         raise BlockadeError('selection does not match any container')
@@ -159,6 +161,12 @@ def cmd_start(opts):
     """Start some or all containers
     """
     __with_containers(opts, Blockade.start)
+
+
+def cmd_kill(opts):
+    """Kill some or all containers
+    """
+    __with_containers(opts, Blockade.kill)
 
 
 def cmd_stop(opts):
@@ -258,6 +266,7 @@ _CMDS = (("up", cmd_up),
          ("start", cmd_start),
          ("restart", cmd_restart),
          ("stop", cmd_stop),
+         ("kill", cmd_kill),
          ("logs", cmd_logs),
          ("flaky", cmd_flaky),
          ("slow", cmd_slow),
@@ -298,6 +307,7 @@ def setup_parser():
     _add_output_options(command_parsers["status"])
 
     _add_container_selection_options(command_parsers["start"])
+    _add_container_selection_options(command_parsers["kill"])
     _add_container_selection_options(command_parsers["stop"])
     _add_container_selection_options(command_parsers["restart"])
     _add_container_selection_options(command_parsers["flaky"])
@@ -312,6 +322,9 @@ def setup_parser():
         help='Comma-separated partition')
     command_parsers["partition"].add_argument("-z", "--random", action='store_true',
         help='Randomly select zero or more partitions')
+
+    command_parsers["kill"].add_argument("-s", "--signal", action="store", default="SIGKILL",
+        help="Specify the signal to be sent (str or int). Defaults to SIGKILL.")
 
     return parser
 
