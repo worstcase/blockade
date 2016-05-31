@@ -71,7 +71,7 @@ class BlockadeNetwork(object):
             device = re.search('^([0-9]+):', res)
             if not device:
                 raise BlockadeError(
-                    "Problem determining host network device for container '%s'" %
+                    "1 Problem determining host network device for container '%s'" %
                     (container_id))
 
             peer_idx = int(device.group(1))
@@ -85,14 +85,14 @@ class BlockadeNetwork(object):
             host_match = re.search(host_rgx, host_res.decode(), re.M)
             if not host_match:
                 raise BlockadeError(
-                    "Problem determining host network device for container '%s'" %
+                    "2 Problem determining host network device for container '%s'" %
                     (container_id))
 
             host_device = host_match.group(1)
             return host_device
         except subprocess.CalledProcessError:
             raise BlockadeError(
-                "Problem determining host network device for container '%s'" %
+                "3 Problem determining host network device for container '%s'" %
                 (container_id))
 
 

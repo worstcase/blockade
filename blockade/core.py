@@ -59,6 +59,13 @@ class Blockade(object):
                 sys.stdout.write(msg)
                 sys.stdout.flush()
 
+        # Create custom network to allow docker resolve container hostnames
+        # via built-in DNS server.
+        response = self.docker_client.create_network("ourtestnet")
+        if response['Warning']:
+            vprint(response['Warning'])
+        self.docker_net_id = response['Id']
+
         for idx, container in enumerate(self.config.sorted_containers):
             name = container.name
 
@@ -143,8 +150,12 @@ class Blockade(object):
             else:
                 raise
 
+        # attach container to network
+        result = self.docker_client.connect_container_to_network(container_id, self.docker_net_id)
+
         # start container
         self.docker_client.start(container_id)
+
         return container_id
 
     def __try_remove_container(self, name):
