@@ -140,7 +140,7 @@ def cmd_status(opts):
     print_containers(containers, opts.json)
 
 
-def __with_containers(opts, func):
+def __with_containers(opts, func, **kwargs):
     containers, select_all = _check_container_selections(opts)
     config = load_config(opts.config)
     b = get_blockade(config)
@@ -149,10 +149,8 @@ def __with_containers(opts, func):
     configured_containers = set(state.containers.keys())
     container_names = configured_containers if select_all or None else configured_containers.intersection(containers)
 
-    if len(container_names) > 0 and hasattr(opts, 'signal'):
-        return func(b, container_names, state, signal=opts.signal)
-    elif len(container_names) > 0:
-        return func(b, container_names, state)
+    if len(container_names) > 0:
+        return func(b, container_names, state, **kwargs)
     else:
         raise BlockadeError('selection does not match any container')
 
@@ -166,7 +164,8 @@ def cmd_start(opts):
 def cmd_kill(opts):
     """Kill some or all containers
     """
-    __with_containers(opts, Blockade.kill)
+    signal = opts.signal if hasattr(opts, 'signal') else "SIGKILL"
+    __with_containers(opts, Blockade.kill, signal = signal)
 
 
 def cmd_stop(opts):
