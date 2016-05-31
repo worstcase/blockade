@@ -191,7 +191,8 @@ class Blockade(object):
         network = container.get('NetworkSettings')
         ip = None
         if network:
-            ip = network.get('IPAddress')
+            # buggy
+            ip = network.get('Networks').get('discovery_net').get('IPAddress')
             if ip:
                 extras['ip_address'] = ip
 
