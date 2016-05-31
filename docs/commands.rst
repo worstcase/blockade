@@ -69,6 +69,23 @@ system (``blockade --help``).
 
       --all       Select all containers
 
+``kill``
+----------
+
+::
+
+    usage: blockade kill [--all] [--signal] [CONTAINER [CONTAINER ...]]
+
+    Kill some or all containers
+
+      CONTAINER   Container to select
+
+      --all       Select all containers
+
+    optional arguments:
+
+      --signal      Specify the signal to be sent (str or int). Defaults to SIGKILL.
+
 ``restart``
 ----------
 
