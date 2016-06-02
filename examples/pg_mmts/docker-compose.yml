@@ -1,0 +1,29 @@
+version: '2'
+
+services:
+
+  node1:
+    build: .
+    environment:
+      POSTGRES_USER: 'postgres'
+      NODE_ID: 1
+    ports:
+      - "5432:5432"
+
+  node2:
+    build: .
+    environment:
+      POSTGRES_USER: 'postgres'
+      NODE_ID: 2
+    ports:
+      - "5433:5432"
+
+  node3:
+    build: .
+    environment:
+      POSTGRES_USER: 'postgres'
+      NODE_ID: 3
+    ports:
+      - "5434:5432"
+
+
