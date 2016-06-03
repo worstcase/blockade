@@ -60,6 +60,7 @@ if [ "$1" = 'postgres' ]; then
 		############################################################################
 		
 		CONNSTRS='dbname=postgres host=node1, dbname=postgres host=node2, dbname=postgres host=node3'
+		RAFT_PEERS='1:172.19.0.2:6666, 2:172.19.0.4:6666, 3:172.19.0.3:6666'
 
 		cat <<-EOF >> $PGDATA/postgresql.conf
 			listen_addresses='*' 
@@ -70,7 +71,10 @@ if [ "$1" = 'postgres' ]; then
 			max_replication_slots = 10
 			max_wal_senders = 10
 			shared_preload_libraries = 'raftable,multimaster'
+			raftable.id = $NODE_ID
+			raftable.peers = '$RAFT_PEERS'
 			multimaster.workers=4
+			multimaster.use_raftable=true
 			multimaster.queue_size=52857600
 			multimaster.ignore_tables_without_pk=1
 			multimaster.node_id = $NODE_ID

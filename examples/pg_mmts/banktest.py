@@ -105,7 +105,7 @@ class BankClient(object):
             res = cur.fetchone()
             if res[0] != 0:
                 raise BaseException #"Isolation error, total = %d" % (res[0],)
-            print("Check total ok")
+            #print("Check total ok")
 
         cur.close()
         conn.close()
@@ -132,14 +132,14 @@ class BankClient(object):
                     set amount = amount + %s
                     where uid = %s''',
                     (amount, to_uid))
-            try:
-                conn.commit()
-            except:
-                self.history.register_finish(event_id, 'rollback')
-            else:
-                self.history.register_finish(event_id, 'commit')
+           # try:
+            conn.commit()
+           # except:
+           #     self.history.register_finish(event_id, 'rollback')
+           # else:
+           #     self.history.register_finish(event_id, 'commit')
             
-            print("Transfer", i)
+            print("T", i)
 
         cur.close()
         conn.close()
@@ -167,12 +167,12 @@ class BankClient(object):
 
 
 
-b = BankClient("dbname=postgres host=127.0.0.1 user=postgres")
-b.start()
-time.sleep(5)
-b.stop()
-
-b.history.aggregate()
-
-b.cleanup()
+# b = BankClient("dbname=postgres host=127.0.0.1 user=postgres")
+# b.start()
+# time.sleep(5)
+# b.stop()
+# 
+# b.history.aggregate()
+# 
+# b.cleanup()
 
