@@ -14,58 +14,60 @@
 # limitations under the License.
 #
 
-import os
-import errno
 from copy import deepcopy
-import re
 
+import errno
+import os
+import re
 import yaml
 
-from .errors import AlreadyInitializedError, NotInitializedError, \
-    InconsistentStateError
-
-BLOCKADE_STATE_DIR = ".blockade"
-BLOCKADE_STATE_FILE = ".blockade/state.yml"
-BLOCKADE_STATE_VERSION = 1
-
-
-def _assure_dir():
-    '''Make sure the .blockade directory exists'''
-    try:
-        os.mkdir(BLOCKADE_STATE_DIR)
-    except OSError as err:
-        if err.errno != errno.EEXIST:
-            raise
-
-
-def _state_delete():
-    '''Try to delete the state.yml file and the folder .blockade'''
-    try:
-        os.remove(BLOCKADE_STATE_FILE)
-    except OSError as err:
-        if err.errno not in (errno.EPERM, errno.ENOENT):
-            raise
-
-    try:
-        os.rmdir(BLOCKADE_STATE_DIR)
-    except OSError as err:
-        if err.errno not in (errno.ENOTEMPTY, errno.ENOENT):
-            raise
+from .errors import AlreadyInitializedError
+from .errors import BlockadeError
+from .errors import InconsistentStateError
+from .errors import NotInitializedError
 
 
 class BlockadeState(object):
-    '''
-    Blockade state information containing blockade ID
-    and the container specifications.
-    '''
+    '''Blockade state related functionality'''
 
-    def __init__(self, blockade_id, containers):
-        self._blockade_id = blockade_id
-        self._containers = containers
+    def __init__(self,
+                 blockade_id=None,
+                 data_dir=None,
+                 state_file=None,
+                 state_version=1):
+
+        if blockade_id:
+            if re.match(r"^[a-zA-Z0-9-.]+$", blockade_id) is None:
+                raise BlockadeError("'%s' is an invalid blockade ID. "
+                                    "You may use only [a-zA-Z0-9-.]")
+
+        # If no data_dir specificed put state file in:
+        #   CWD/.blockade/
+        # If data_dir specified put state file in:
+        #   data_dir/.blockade/
+        # If data_dir and blockade_id specified put state file in:
+        #   data_dir/.blockade/blockade_id/
+        if data_dir:
+            self._data_dir = data_dir
+            self._state_dir = os.path.join(data_dir, ".blockade")
+        else:
+            self._data_dir = None
+            self._state_dir = os.path.join(os.getcwd(), ".blockade")
+
+        if data_dir and blockade_id:
+            self._state_dir = os.path.join(self._state_dir, blockade_id)
+
+        self._state_dir = os.path.abspath(self._state_dir)
+
+        state_file = state_file or "state.yml"
+        self._state_file = os.path.join(self._state_dir, state_file)
+
+        self._blockade_id = blockade_id or self._get_blockade_id_from_cwd()
+        self._state_version = state_version
+        self._containers = None
 
     @property
     def blockade_id(self):
-        '''Blockade ID the state information belong to'''
         return self._blockade_id
 
     @property
@@ -80,15 +82,44 @@ class BlockadeState(object):
             return container.get('id', None)
         return None
 
+    def initialize(self, containers):
+        '''
+        Initialize a new state file with the given contents.
+        This function fails in case the state file already exists.
+        '''
+        self._containers = deepcopy(containers)
+        self.__write(containers, initialize=True)
 
-class BlockadeStateFactory(object):
-    '''Blockade state related functionality'''
+    def exists(self):
+        '''Checks whether a blockade state file already exists'''
+        return os.path.isfile(self._state_file)
 
-    @staticmethod
-    def get_blockade_id(cwd=None):
+    def update(self, containers):
+        '''Update the current state file with the specified contents'''
+        self.__write(deepcopy(containers), initialize=False)
+
+    def load(self):
+        '''Try to load a blockade state file in the current directory'''
+        try:
+            with open(self._state_file) as f:
+                state = yaml.safe_load(f)
+                self._containers = state['containers']
+        except (IOError, OSError) as err:
+            if err.errno == errno.ENOENT:
+                raise NotInitializedError("No blockade exists in this context")
+            raise InconsistentStateError("Failed to load Blockade state: "
+                                         + str(err))
+        except Exception as err:
+            raise InconsistentStateError("Failed to load Blockade state: "
+                                         + str(err))
+
+    def destroy(self):
+        '''Try to remove the current state file and directory'''
+        self._state_delete()
+
+    def _get_blockade_id_from_cwd(self, cwd=None):
         '''Generate a new blockade ID based on the CWD'''
-
-        if cwd is None:
+        if not cwd:
             cwd = os.getcwd()
         # this follows a similar pattern as docker-compose uses
         parent_dir = os.path.abspath(cwd)
@@ -98,74 +129,47 @@ class BlockadeStateFactory(object):
             blockade_id = "default"
         return blockade_id
 
-    @staticmethod
-    def initialize(containers, blockade_id=None):
-        '''
-        Initialize a new state file with the given contents.
-        This function fails in case the state file already exists.
-        '''
-        if blockade_id is None:
-            blockade_id = BlockadeStateFactory.get_blockade_id()
-        containers = deepcopy(containers)
-
-        BlockadeStateFactory.__write(blockade_id, containers, initialize=True)
-
-        return BlockadeState(blockade_id, containers)
-
-    @staticmethod
-    def exists():
-        '''Checks whether a blockade state file already exists'''
-        return os.path.isfile(BLOCKADE_STATE_FILE)
-
-    @staticmethod
-    def update(blockade_id, containers):
-        '''Update the current state file with the specified contents'''
-        BlockadeStateFactory.__write(blockade_id, deepcopy(containers), initialize=False)
-
-    @staticmethod
-    def load():
-        '''Try to load a blockade state file in the current directory'''
+    def _assure_dir(self):
+        '''Make sure the state directory exists'''
         try:
-            with open(BLOCKADE_STATE_FILE) as f:
-                state = yaml.safe_load(f)
-                return BlockadeState(state['blockade_id'], state['containers'])
+            os.makedirs(self._state_dir)
+        except OSError as err:
+            if err.errno != errno.EEXIST:
+                raise
 
-        except (IOError, OSError) as err:
-            if err.errno == errno.ENOENT:
-                raise NotInitializedError("No blockade exists in this context")
-            raise InconsistentStateError("Failed to load Blockade state: "
-                                         + str(err))
+    def _state_delete(self):
+        '''Try to delete the state.yml file and the folder .blockade'''
+        try:
+            os.remove(self._state_file)
+        except OSError as err:
+            if err.errno not in (errno.EPERM, errno.ENOENT):
+                raise
 
-        except Exception as err:
-            raise InconsistentStateError("Failed to load Blockade state: "
-                                         + str(err))
+        try:
+            os.rmdir(self._state_dir)
+        except OSError as err:
+            if err.errno not in (errno.ENOTEMPTY, errno.ENOENT):
+                raise
 
-    @staticmethod
-    def destroy():
-        '''Try to remove the current state file and directory'''
-        _state_delete()
-
-    @staticmethod
-    def __base_state(blockade_id, containers):
+    def __base_state(self, containers):
         '''
         Convert blockade ID and container information into
         a state dictionary object.
         '''
-        return dict(blockade_id=blockade_id,
+        return dict(blockade_id=self._blockade_id,
                     containers=containers,
-                    version=BLOCKADE_STATE_VERSION)
+                    version=self._state_version)
 
-    @staticmethod
-    def __write(blockade_id, containers, initialize=True):
+    def __write(self, containers, initialize=True):
         '''Write the given state information into a file'''
-        path = BLOCKADE_STATE_FILE
-        _assure_dir()
+        path = self._state_file
+        self._assure_dir()
         try:
             flags = os.O_WRONLY | os.O_CREAT
             if initialize:
                 flags |= os.O_EXCL
             with os.fdopen(os.open(path, flags), "w") as f:
-                yaml.safe_dump(BlockadeStateFactory.__base_state(blockade_id, containers), f)
+                yaml.safe_dump(self.__base_state(containers), f)
         except OSError as err:
             if err.errno == errno.EEXIST:
                 raise AlreadyInitializedError(
@@ -174,5 +178,5 @@ class BlockadeStateFactory(object):
             raise
         except Exception:
             # clean up our created file
-            _state_delete()
+            self._state_delete()
             raise

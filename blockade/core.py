@@ -16,21 +16,20 @@
 
 from __future__ import print_function
 
+import docker
 import errno
 import random
 import re
 import sys
 import time
 
-import docker
-
-from .errors import BlockadeError,\
-                    AlreadyInitializedError,\
-                    BlockadeContainerConflictError,\
-                    InsufficientPermissionsError
-
-from .net import NetworkState, BlockadeNetwork
-from .state import BlockadeState, BlockadeStateFactory
+from .errors import AlreadyInitializedError
+from .errors import BlockadeContainerConflictError
+from .errors import BlockadeError
+from .errors import InsufficientPermissionsError
+from .net import BlockadeNetwork
+from .net import NetworkState
+from .state import BlockadeState
 
 
 # TODO: configurable timeout
@@ -38,27 +37,20 @@ DEFAULT_KILL_TIMEOUT = 3
 
 
 class Blockade(object):
-    def __init__(self, config, state_factory=None, network=None,
-                 docker_client=None):
+    def __init__(self, config, blockade_id=None, state=None,
+                 network=None, docker_client=None):
         self.config = config
-        self.state_factory = state_factory or BlockadeStateFactory()
+        self.state = state or BlockadeState(blockade_id=blockade_id)
         self.network = network or BlockadeNetwork(config)
         self.docker_client = docker_client or docker.Client()
 
-    def create(self, blockade_id=None, verbose=False, force=False):
+    def create(self, verbose=False, force=False):
         container_state = {}
-
-        if blockade_id:
-            if re.match(r"^[a-zA-Z0-9-.]+$", blockade_id) is None:
-                raise BlockadeError("'%s' is an invalid blockade ID. "
-                                    "You may use only [a-zA-Z0-9-.]")
-        else:
-            blockade_id = self.state_factory.get_blockade_id()
 
         num_containers = len(self.config.sorted_containers)
 
         # we can check if a state file already exists beforehand
-        if self.state_factory.exists():
+        if self.state.exists():
             raise AlreadyInitializedError('a blockade already exists in here - '
                                           'you may want to destroy it first')
 
@@ -78,7 +70,7 @@ class Blockade(object):
                 vprint('(delaying for %s seconds)' % (container.start_delay))
                 time.sleep(container.start_delay)
 
-            container_id = self._start_container(blockade_id, container, force)
+            container_id = self._start_container(container, force)
             device = self._init_container(container_id, name)
 
             # store device in state file
@@ -88,12 +80,11 @@ class Blockade(object):
         vprint('\r')
 
         # try to persist container states
-        state = self.state_factory.initialize(container_state, blockade_id)
+        self.state.initialize(container_state)
 
         container_descriptions = []
         for container in self.config.sorted_containers:
-            description = self._get_container_description(state, container.name)
-
+            description = self._get_container_description(container.name)
             container_descriptions.append(description)
 
         return container_descriptions
@@ -110,13 +101,12 @@ class Blockade(object):
                 msg = "Failed to determine network device of container '%s' [%s]" % (container_name, container_id)
                 raise InsufficientPermissionsError(msg)
             raise
-
         return device
 
-    def _start_container(self, blockade_id, container, force=False):
-        container_name = container.container_name or docker_container_name(blockade_id, container.name)
+    def _start_container(self, container, force=False):
+        container_name = container.container_name or docker_container_name(self.state.blockade_id, container.name)
         volumes = list(container.volumes.values()) or None
-        links = dict((docker_container_name(blockade_id, link), alias)
+        links = dict((docker_container_name(self.state.blockade_id, link), alias)
                      for link, alias in container.links.items())
 
         # the docker api for port bindings is `internal:external`
@@ -137,8 +127,7 @@ class Blockade(object):
                 hostname=container.hostname,
                 environment=container.environment,
                 host_config=host_config,
-                labels={"blockade.id": blockade_id})
-
+                labels={"blockade.id": self.state.blockade_id})
             return response['Id']
 
         try:
@@ -166,24 +155,25 @@ class Blockade(object):
             # TODO: log error?
             return False
 
-    def _get_container_description(self, state, name, network_state=True,
+    def _get_container_description(self, name, network_state=True,
                                    ip_partitions=None):
-        state_container = state.containers[name]
+        self.state.load()
+        state_container = self.state.containers[name]
         container_id = state_container['id']
 
         try:
             container = self.docker_client.inspect_container(container_id)
         except docker.errors.APIError as err:
             if err.response.status_code == 404:
-                return Container(name, container_id, ContainerState.MISSING)
+                return Container(name, container_id, ContainerStatus.MISSING)
             else:
                 raise
 
         state_dict = container.get('State')
         if state_dict and state_dict.get('Running'):
-            container_state = ContainerState.UP
+            container_status = ContainerStatus.UP
         else:
-            container_state = ContainerState.DOWN
+            container_status = ContainerStatus.DOWN
 
         extras = {}
         network = container.get('NetworkSettings')
@@ -193,8 +183,8 @@ class Blockade(object):
             if ip:
                 extras['ip_address'] = ip
 
-        if (network_state and name in state.containers
-                and container_state == ContainerState.UP):
+        if (network_state and name in self.state.containers
+                and container_status == ContainerStatus.UP):
             device = state_container['device']
             extras['device'] = device
             extras['network_state'] = self.network.network_state(device)
@@ -212,24 +202,23 @@ class Blockade(object):
         extras['neutral'] = cfg_container.neutral if cfg_container else False
         extras['holy'] = cfg_container.holy if cfg_container else False
 
-        return Container(name, container_id, container_state, **extras)
+        return Container(name, container_id, container_status, **extras)
 
     def destroy(self, force=False):
-        state = self.state_factory.load()
-
-        containers = self._get_docker_containers(state)
+        containers = self._get_docker_containers()
         for container in list(containers.values()):
             container_id = container['Id']
             self.docker_client.stop(container_id, timeout=DEFAULT_KILL_TIMEOUT)
             self.docker_client.remove_container(container_id)
 
-        self.network.restore(state.blockade_id)
-        self.state_factory.destroy()
+        self.network.restore(self.state.blockade_id)
+        self.state.destroy()
 
-    def _get_docker_containers(self, state):
+    def _get_docker_containers(self):
+        self.state.load()
         containers = {}
-        filters = {"label": ["blockade.id=" + state.blockade_id]}
-        prefix = state.blockade_id + "_"
+        filters = {"label": ["blockade.id=" + self.state.blockade_id]}
+        prefix = self.state.blockade_id + "_"
         for container in self.docker_client.containers(all=True, filters=filters):
             for name in container['Names']:
                 # strip leading '/'
@@ -238,31 +227,30 @@ class Blockade(object):
                 # strip prefix. containers will have these UNLESS `container_name`
                 # was specified in the config
                 name = name[len(prefix):] if name.startswith(prefix) else name
-                if name in state.containers:
+                if name in self.state.containers:
                     containers[name] = container
                     break
         return containers
 
-    def _get_all_containers(self, state):
+    def _get_all_containers(self):
+        self.state.load()
         containers = []
-        ip_partitions = self.network.get_ip_partitions(state.blockade_id)
-        docker_containers = self._get_docker_containers(state)
+        ip_partitions = self.network.get_ip_partitions(self.state.blockade_id)
+        docker_containers = self._get_docker_containers()
 
         for name in docker_containers.keys():
-            container = self._get_container_description(state, name, ip_partitions=ip_partitions)
+            container = self._get_container_description(name, ip_partitions=ip_partitions)
             containers.append(container)
         return containers
 
     def status(self):
-        state = self.state_factory.load()
-        return self._get_all_containers(state)
+        return self._get_all_containers()
 
-    def _get_running_containers(self, container_names=None, state=None):
-        state = state or self.state_factory.load()
-        containers = self._get_all_containers(state)
+    def _get_running_containers(self, container_names=None):
+        containers = self._get_all_containers()
 
         running = dict((c.name, c) for c in containers
-                       if c.state == ContainerState.UP)
+                       if c.status == ContainerStatus.UP)
         if container_names is None:
             return list(running.values())
 
@@ -275,55 +263,55 @@ class Blockade(object):
             found.append(container)
         return found
 
-    def _get_running_container(self, container_name, state=None):
-        return self._get_running_containers((container_name,), state)[0]
+    def _get_running_container(self, container_name):
+        return self._get_running_containers((container_name,))[0]
 
-    def __with_running_container_device(self, container_names, state, func):
-        containers = self._get_running_containers(container_names, state)
+    def __with_running_container_device(self, container_names, func):
+        containers = self._get_running_containers(container_names)
         for container in containers:
             device = container.device
             func(device)
 
-    def flaky(self, container_names, state):
-        self.__with_running_container_device(container_names, state, self.network.flaky)
+    def flaky(self, container_names):
+        self.__with_running_container_device(container_names, self.network.flaky)
 
-    def slow(self, container_names, state):
-        self.__with_running_container_device(container_names, state, self.network.slow)
+    def slow(self, container_names):
+        self.__with_running_container_device(container_names, self.network.slow)
 
-    def duplicate(self, container_names, state):
-        self.__with_running_container_device(container_names, state, self.network.duplicate)
+    def duplicate(self, container_names):
+        self.__with_running_container_device(container_names, self.network.duplicate)
 
-    def fast(self, container_names, state):
-        self.__with_running_container_device(container_names, state, self.network.fast)
+    def fast(self, container_names):
+        self.__with_running_container_device(container_names, self.network.fast)
 
-    def restart(self, container_names, state):
-        containers = self._get_running_containers(container_names, state)
+    def restart(self, container_names):
+        containers = self._get_running_containers(container_names)
         for container in containers:
             self._stop(container)
-            state = self._start(container.name, state)
+            self._start(container.name)
 
-    def kill(self, container_names, state, signal="SIGKILL"):
-        containers = self._get_running_containers(container_names, state)
+    def kill(self, container_names, signal="SIGKILL"):
+        containers = self._get_running_containers(container_names)
         for container in containers:
             self._kill(container, signal)
 
     def _kill(self, container, signal):
         self.docker_client.kill(container.container_id, signal)
 
-    def stop(self, container_names, state):
-        containers = self._get_running_containers(container_names, state)
+    def stop(self, container_names):
+        containers = self._get_running_containers(container_names)
         for container in containers:
             self._stop(container)
 
     def _stop(self, container):
         self.docker_client.stop(container.container_id, timeout=DEFAULT_KILL_TIMEOUT)
 
-    def start(self, container_names, state):
+    def start(self, container_names):
         for container in container_names:
-            state = self._start(container, state)
+            self._start(container)
 
-    def _start(self, container, state):
-        container_id = state.container_id(container)
+    def _start(self, container):
+        container_id = self.state.container_id(container)
         if container_id is None:
             return
 
@@ -332,16 +320,12 @@ class Blockade(object):
         device = self._init_container(container_id, container)
 
         # update state
-        updated_containers = state.containers
+        updated_containers = self.state.containers
         updated_containers[container] = {'id': container_id, 'device': device}
-        self.state_factory.update(state.blockade_id, updated_containers)
-
-        # make sure further calls are operating on the updated state
-        return BlockadeState(state.blockade_id, updated_containers)
+        self.state.update(updated_containers)
 
     def random_partition(self):
-        state = self.state_factory.load()
-        containers = [c.name for c in self._get_running_containers(state=state)
+        containers = [c.name for c in self._get_running_containers()
                       if not c.holy]
 
         # no containers to partition
@@ -366,12 +350,11 @@ class Blockade(object):
                 random_partition = random.randint(0, num_partitions-1)
                 partitions[random_partition].append(pick())
 
-            self.partition(partitions, state)
+            self.partition(partitions)
             return partitions
 
-    def partition(self, partitions, state=None):
-        state = state or self.state_factory.load()
-        containers = self._get_running_containers(state=state)
+    def partition(self, partitions):
+        containers = self._get_running_containers()
         container_dict = dict((c.name, c) for c in containers)
         partitions = expand_partitions(containers, partitions)
 
@@ -379,12 +362,12 @@ class Blockade(object):
         for partition in partitions:
             container_partitions.append([container_dict[c] for c in partition])
 
-        self.network.partition_containers(state.blockade_id,
+        self.network.partition_containers(self.state.blockade_id,
                                           container_partitions)
 
     def join(self):
-        state = self.state_factory.load()
-        self.network.restore(state.blockade_id)
+        self.state.load()
+        self.network.restore(self.state.blockade_id)
 
     def logs(self, container_name):
         container = self._get_running_container(container_name)
@@ -397,10 +380,10 @@ class Container(object):
     network_state = NetworkState.NORMAL
     partition = None
 
-    def __init__(self, name, container_id, state, **kwargs):
+    def __init__(self, name, container_id, status, **kwargs):
         self.name = name
         self.container_id = container_id
-        self.state = state
+        self.status = status
         self.holy = False
         self.neutral = False
 
@@ -410,15 +393,15 @@ class Container(object):
     def to_dict(self):
         return dict(name=self.name,
                     container_id=self.container_id,
-                    state=self.state,
+                    status=self.status,
                     ip_address=self.ip_address,
                     device=self.device,
                     network_state=self.network_state,
                     partition=self.partition)
 
 
-class ContainerState(object):
-    '''Different possible container states
+class ContainerStatus(object):
+    '''Possible container status
     '''
     UP = "UP"
     DOWN = "DOWN"

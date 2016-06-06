@@ -17,19 +17,20 @@
 import mock
 
 from blockade.tests import unittest
-from blockade.core import Blockade, Container, ContainerState, expand_partitions
+from blockade.core import Blockade, Container, ContainerStatus, expand_partitions
 from blockade.errors import BlockadeError
 from blockade.config import BlockadeContainerConfig, BlockadeConfig
-from blockade.state import BlockadeState
 
 
 class BlockadeCoreTests(unittest.TestCase):
 
-    def setUp(self):
-        self.network = mock.Mock()
+    blockade_id = None
 
-        self.state_factory = mock.Mock()
+    def setUp(self):
+        self.blockade_id = "ourblockadeid"
+        self.network = mock.Mock()
         self.docker_client = mock.Mock()
+        self.state = mock.MagicMock()
 
     def test_create(self):
         containers = {'c1': BlockadeContainerConfig("c1", "image"),
@@ -39,30 +40,30 @@ class BlockadeCoreTests(unittest.TestCase):
 
         self.network.get_container_device.side_effect = lambda dc, y: "veth"+y
 
-        initialize = lambda x, y: BlockadeState("ourblockadeid", x)
-        self.state_factory.initialize.side_effect = initialize
-        self.state_factory.exists.side_effect = lambda: False
-        self.state_factory.get_blockade_id = mock.MagicMock(return_value="ourblockadeid")
+        self.state.exists.side_effect = lambda: False
+        self.state.blockade_id = self.blockade_id
         self.docker_client.create_container.side_effect = [
             {"Id": "container1"},
             {"Id": "container2"},
             {"Id": "container3"}]
 
-        b = Blockade(config, self.state_factory, self.network,
-                     self.docker_client)
+        b = Blockade(config,
+                     state=self.state,
+                     network=self.network,
+                     docker_client=self.docker_client)
 
         b.create()
 
-        self.assertEqual(self.state_factory.initialize.call_count, 1)
+        self.assertEqual(self.state.initialize.call_count, 1)
         self.assertEqual(self.docker_client.create_container.call_count, 3)
 
     def test_expand_partitions(self):
         def normal(name):
-            return Container(name, 'id-'+name, ContainerState.UP)
+            return Container(name, 'id-'+name, ContainerStatus.UP)
         containers = [normal(name) for name in ["c1", "c2", "c3", "c4", "c5"]]
 
         # add a holy container as well
-        containers.append(Container('c6', 'id-c6', ContainerState.UP, holy=True))
+        containers.append(Container('c6', 'id-c6', ContainerStatus.UP, holy=True))
 
         partitions = expand_partitions(containers, [["c1", "c3"]])
         self.assert_partitions(partitions, [["c1", "c3"], ["c2", "c4", "c5"]])
