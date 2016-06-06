@@ -3,52 +3,56 @@ import time
 import subprocess
 from banktest import *
 
+
 class RecoveryTest(unittest.TestCase):
     def setUp(self):
-        # docker build
-        # blockade up
         #subprocess.check_call(['blockade','up'])
-
-        print('setUp')
-
-        self.b1 = BankClient("dbname=postgres host=127.0.0.1 user=postgres")
-        self.b1.start()
-
-#        b2 = BankTest(cs2)
-#        b2.start()
-#
-#        b3 = BankTest(cs3)
-#        b3.start()
-#
-#        self.benchmarks = [b1, b2, b3]
+        self.clients = ClientCollection([
+            "dbname=postgres host=127.0.0.1 user=postgres",
+            "dbname=postgres host=127.0.0.1 user=postgres port=5433",
+            "dbname=postgres host=127.0.0.1 user=postgres port=5434"
+        ])
+        self.clients.start()
 
     def tearDown(self):
-        print('tearDown')
-
-        self.b1.stop()
-        self.b1.cleanup()
+        self.clients.stop()
+        self.clients[0].cleanup()
         subprocess.check_call(['blockade','join'])
 
-    def test_normal_operation(self):
-        print('normalOps')
+#    def test_0_normal_operation(self):
+#        print('normalOpsTest')
+#        time.sleep(5)
+#        
+#        for client in self.clients:
+#            agg = client.history.aggregate()
+#            print(agg)
+#            self.assertTrue(agg['tx']['commit'] > 0)
 
-        time.sleep(4)
-        
-        b1_agg = self.b1.history.aggregate()
-        print(b1_agg)
-        self.assertTrue(b1_agg['tx']['commit'] > 0)
-    
-    def test_node_disconnect(self):
-        print('disconnect')
-
-        time.sleep(5)
+    def test_1_node_disconnect(self):
+        print('disconnectTest')
+        time.sleep(3)
 
         subprocess.check_call(['blockade','partition','node3'])
         print('---node3 out---')
+        
         time.sleep(5)
 
+        # node1 should work
+        agg = self.clients[0].history.aggregate()
+        print(agg)
+#        self.assertTrue(agg['tx']['commit'] > 0)
+
+        # node3 shouldn't work
+        agg = self.clients[2].history.aggregate()
+        print(agg)
+#        self.assertTrue(agg['tx']['commit'] == 0)
+
+#        subprocess.check_call(['blockade','partition','node2'])
+#        print('---node2 out---')
+#        time.sleep(5)
+
         subprocess.check_call(['blockade','join'])
-        print('---node3 back---')
+        print('---node2 and node3 are back---')
         time.sleep(5)
 
         #b1_agg = self.b1.history().aggregate()

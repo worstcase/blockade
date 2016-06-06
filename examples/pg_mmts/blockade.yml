@@ -5,31 +5,30 @@ containers:
   node1:
     #build: .
     container_name: node1
-    image: d2ce5e7cce13 #postgres_mmts_docker
+    image: aed72a8661aa #postgres_mmts_docker
     environment:
       POSTGRES_USER: 'postgres'
       NODE_ID: 1
     ports:
-      - 5432
+      5432: 5432
 
   node2:
     #build: .
     container_name: node2
-    image: d2ce5e7cce13 #postgres_mmts_docker
+    image: aed72a8661aa #postgres_mmts_docker
     environment:
       POSTGRES_USER: 'postgres'
       NODE_ID: 2
     ports:
-      - 5433
-
+      5433: 5432
+  
   node3:
     #build: .
     container_name: node3
-    image: d2ce5e7cce13 #postgres_mmts_docker
+    image: aed72a8661aa #postgres_mmts_docker
     environment:
       POSTGRES_USER: 'postgres'
       NODE_ID: 3
     ports:
-      - 5434
-
+      5434: 5432
 
