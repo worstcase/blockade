@@ -24,6 +24,7 @@ import yaml
 from .errors import AlreadyInitializedError
 from .errors import BlockadeError
 from .errors import InconsistentStateError
+from .errors import InvalidBlockadeName
 from .errors import NotInitializedError
 
 
@@ -38,8 +39,8 @@ class BlockadeState(object):
 
         if blockade_id:
             if re.match(r"^[a-zA-Z0-9-.]+$", blockade_id) is None:
-                raise BlockadeError("'%s' is an invalid blockade ID. "
-                                    "You may use only [a-zA-Z0-9-.]")
+                raise InvalidBlockadeName("'%s' is an invalid blockade ID. "
+                                          "You may use only [a-zA-Z0-9-.]")
 
         # If no data_dir specificed put state file in:
         #   CWD/.blockade/

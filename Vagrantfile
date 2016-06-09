@@ -15,7 +15,7 @@ if [ ! -f /etc/default/docker ]; then
 fi
 
 apt-get update
-apt-get -y install python-pip python-virtualenv
+apt-get -y install python-pip python-virtualenv python-dev
 
 cd /vagrant
 
