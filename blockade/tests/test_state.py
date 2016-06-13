@@ -19,20 +19,23 @@ import shutil
 import tempfile
 
 from blockade.tests import unittest
-from blockade.state import BlockadeStateFactory
+from blockade.state import BlockadeState
 from blockade.errors import NotInitializedError
 
 
 class BlockadeStateTests(unittest.TestCase):
     tempdir = None
     oldcwd = None
+    state = None
 
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
         self.oldcwd = os.getcwd()
         os.chdir(self.tempdir)
+        self.state = BlockadeState(data_dir=self.tempdir)
 
     def tearDown(self):
+        self.state = None
         if self.oldcwd:
             os.chdir(self.oldcwd)
         if self.tempdir:
@@ -44,34 +47,35 @@ class BlockadeStateTests(unittest.TestCase):
     def test_state_initialize(self):
 
         containers = {"n1": {"a": 1}, "n2": {"a": 4}}
-        state = BlockadeStateFactory.initialize(containers=containers)
+        self.state.initialize(containers=containers)
 
         self.assertTrue(os.path.exists(".blockade/state.yml"))
 
-        self.assertEqual(state.containers, containers)
-        self.assertIsNot(state.containers, containers)
-        self.assertIsNot(state.containers["n2"], containers["n2"])
+        self.assertEqual(self.state.containers, containers)
+        self.assertIsNot(self.state.containers, containers)
+        self.assertIsNot(self.state.containers["n2"], containers["n2"])
 
-        self.assertRegexpMatches(state.blockade_id, "^[a-z0-9]+$")
+        self.assertRegexpMatches(self.state.blockade_id, "^[a-z0-9]+$")
 
-        state2 = BlockadeStateFactory.load()
-        self.assertEqual(state2.containers, state.containers)
-        self.assertIsNot(state2.containers, state.containers)
-        self.assertIsNot(state2.containers["n2"], state.containers["n2"])
-        self.assertEqual(state2.blockade_id, state.blockade_id)
+        self.state.load()
+        self.assertEqual(self.state.containers, containers)
+        self.assertIsNot(self.state.containers, containers)
+        self.assertIsNot(self.state.containers["n2"], containers["n2"])
 
-        BlockadeStateFactory.destroy()
+        self.state.destroy()
         self.assertFalse(os.path.exists(".blockade/state.yml"))
         self.assertFalse(os.path.exists(".blockade"))
 
     def test_state_uninitialized(self):
         with self.assertRaises(NotInitializedError):
-            BlockadeStateFactory.load()
+            self.state.load()
 
 
 class BlockadeIdTests(unittest.TestCase):
+    state = BlockadeState()
+
     def test_blockade_id(self):
-        get_blockade_id = BlockadeStateFactory.get_blockade_id
+        get_blockade_id = self.state._get_blockade_id_from_cwd
         self.assertEqual(get_blockade_id(cwd="/abs/path/1234"), "1234")
         self.assertEqual(get_blockade_id(cwd="rel/path/abc"), "abc")
 

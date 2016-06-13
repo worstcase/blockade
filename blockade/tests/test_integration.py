@@ -216,7 +216,7 @@ class IntegrationTests(unittest.TestCase):
             # we just want to make sure everything came up ok -- that
             # containers were started in the right order.
             for container in parsed:
-                self.assertEqual(container['state'], "UP")
+                self.assertEqual(container['status'], "UP")
 
             # could actually try to parse out the logs here and assert that
             # network filters are working.
