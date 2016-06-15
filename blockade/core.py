@@ -63,8 +63,11 @@ class Blockade(object):
         # via built-in DNS server.
         blockade_net_id = self.state_factory.get_blockade_net_id()
         response = self.docker_client.create_network(blockade_net_id)
+
         if response['Warning']:
-            vprint(response['Warning'])
+            raise BlockadeError("Error while creating network: '%s'" %
+                    (response['Warning']))
+
         self.docker_net_id = response['Id']
 
         for idx, container in enumerate(self.config.sorted_containers):
@@ -121,8 +124,11 @@ class Blockade(object):
         port_bindings = dict((v, k) for k, v in container.publish_ports.items())
 
         host_config = self.docker_client.create_host_config(
-            binds=container.volumes, dns=container.dns,
-            port_bindings=port_bindings, links=links)
+            binds=container.volumes,
+            dns=container.dns,
+            port_bindings=port_bindings,
+            network_mode=self.docker_net_id,
+            links=links)
 
         def create_container():
             # try to create container
@@ -150,9 +156,6 @@ class Blockade(object):
                     raise BlockadeContainerConflictError(err)
             else:
                 raise
-
-        # attach container to network
-        result = self.docker_client.connect_container_to_network(container_id, self.docker_net_id)
 
         # start container
         self.docker_client.start(container_id)
