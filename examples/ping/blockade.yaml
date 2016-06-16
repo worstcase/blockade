@@ -9,13 +9,13 @@ containers:
   c2:
     image: ubuntu:trusty
     hostname: c2
-    command: sh -c "env && sleep 3600 && ping -i1 $C1_PORT_10000_TCP_ADDR"
+    command: sh -c "ping -i1 $C1_PORT_10000_TCP_ADDR"
     links: ["c1"]
 
   c3:
     image: ubuntu:trusty
     hostname: c3
-    command: sh -c "env && sleep 3600 && ping -i1 $C1_PORT_10000_TCP_ADDR"
+    command: sh -c "ping -i1 $C1_PORT_10000_TCP_ADDR"
     links: ["c1"]
 
 network:
