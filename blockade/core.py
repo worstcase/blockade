@@ -19,7 +19,6 @@ from __future__ import print_function
 import docker
 import errno
 import random
-import re
 import sys
 import time
 

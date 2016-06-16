@@ -19,10 +19,12 @@ from clint.textui import puts, puts_err, colored, columns
 import argparse
 import errno
 import json
+import os
 import sys
 import traceback
 import yaml
 
+from .api import rest
 from .config import BlockadeConfig
 from .core import Blockade
 from .errors import BlockadeError
@@ -265,6 +267,14 @@ def cmd_logs(opts):
     puts(b.logs(opts.container).decode(encoding='UTF-8'))
 
 
+def cmd_daemon(opts):
+    """Start the Blockade REST API
+    """
+    if opts.data_dir is None:
+        raise BlockadeError("You must supply a data directory for the daemon")
+    rest.start(data_dir=opts.data_dir, port=opts.port, debug=opts.debug)
+
+
 _CMDS = (("up", cmd_up),
          ("destroy", cmd_destroy),
          ("status", cmd_status),
@@ -278,7 +288,8 @@ _CMDS = (("up", cmd_up),
          ("duplicate", cmd_duplicate),
          ("fast", cmd_fast),
          ("partition", cmd_partition),
-         ("join", cmd_join))
+         ("join", cmd_join),
+         ("daemon", cmd_daemon))
 
 
 def setup_parser():
@@ -333,10 +344,19 @@ def setup_parser():
     command_parsers["kill"].add_argument("-s", "--signal", action="store", default="SIGKILL",
         help="Specify the signal to be sent (str or int). Defaults to SIGKILL.")
 
+    command_parsers["daemon"].add_argument("--debug", action='store_true',
+        help="Enable debug for the REST API")
+    command_parsers["daemon"].add_argument("-p", "--port", action='store',
+        type=int, default=5000, help="REST API port. Default is 5000.")
+
     return parser
 
 
 def main(args=None):
+    if sys.version_info >= (3, 2) and sys.version_info < (3, 3):
+        puts_err(colored.red("\nFor Python 3, Flask requires Python >= 3.3\n"))
+        sys.exit(1)
+
     parser = setup_parser()
     opts = parser.parse_args(args=args)
 
