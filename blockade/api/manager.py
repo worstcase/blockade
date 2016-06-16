@@ -69,4 +69,4 @@ class BlockadeManager:
     @staticmethod
     def get_all_blockade_names():
         global BLOCKADE_CONFIGS
-        return BLOCKADE_CONFIGS.keys()
+        return list(BLOCKADE_CONFIGS.keys())
