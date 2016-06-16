@@ -61,14 +61,13 @@ class Blockade(object):
 
         # Create custom network to allow docker resolve container hostnames
         # via built-in DNS server.
-        blockade_net_id = self.state_factory.get_blockade_net_id()
-        response = self.docker_client.create_network(blockade_net_id)
+        response = self.docker_client.create_network(self.state.blockade_net_name)
 
         if response['Warning']:
             raise BlockadeError("Error while creating network: '%s'" %
                     (response['Warning']))
 
-        self.docker_net_id = response['Id']
+        # self.docker_net_id = response['Id']
 
         for idx, container in enumerate(self.config.sorted_containers):
             name = container.name
@@ -127,7 +126,7 @@ class Blockade(object):
             binds=container.volumes,
             dns=container.dns,
             port_bindings=port_bindings,
-            network_mode=self.docker_net_id,
+            network_mode=self.state.blockade_net_name,
             links=links)
 
         def create_container():
@@ -159,7 +158,6 @@ class Blockade(object):
 
         # start container
         self.docker_client.start(container_id)
-
         return container_id
 
     def __try_remove_container(self, name):
@@ -194,9 +192,8 @@ class Blockade(object):
         network = container.get('NetworkSettings')
         ip = None
         if network:
-            blockade_net_id = self.state_factory.get_blockade_net_id()
-            # buggy
-            ip = network.get('Networks').get(blockade_net_id).get('IPAddress')
+            #ip = network.get('IPAddress')
+            ip = network.get('Networks').get(self.state.blockade_net_name).get('IPAddress')
             if ip:
                 extras['ip_address'] = ip
 
@@ -231,9 +228,9 @@ class Blockade(object):
         self.network.restore(self.state.blockade_id)
         self.state.destroy()
 
-        blockade_net_id = self.state_factory.get_blockade_net_id()
+        # blockade_net_id = self.state_factory.get_blockade_net_id()
         try:
-            self.docker_client.remove_network(blockade_net_id)
+            self.docker_client.remove_network(self.state.blockade_net_name)
         except docker.errors.APIError as err:
             if err.response.status_code != 404:
                 raise

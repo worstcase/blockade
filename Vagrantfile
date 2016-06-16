@@ -39,7 +39,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   end
 
   config.vm.provider :virtualbox do |vb, override|
-    vb.memory = 2048
   end
 
   # there are obviously vagrant versions with a

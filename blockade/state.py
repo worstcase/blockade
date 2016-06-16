@@ -69,7 +69,7 @@ class BlockadeState(object):
     @property
     def blockade_id(self):
         return self._blockade_id
-    
+
     @property
     def blockade_net_name(self):
         '''Generate blockade nework name based on the blockade_id'''
