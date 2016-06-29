@@ -45,6 +45,7 @@ Reference Documentation
    config
    commands
    changes
+   rest
 
 Development and Support
 =======================

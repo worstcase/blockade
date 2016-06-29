@@ -101,8 +101,11 @@ def action(name):
         return "'container_names' not found in body", 400
 
     b = BlockadeManager.get_blockade(name)
-    signal = request.args.get('signal', 'SIGKILL')
-    getattr(b, command)(container_names, signal=signal)
+    if 'kill' == command:
+        signal = request.args.get('signal', 'SIGKILL')
+        getattr(b, command)(container_names, signal=signal)
+    else:
+        getattr(b, command)(container_names)
 
     return '', 204
 
@@ -136,9 +139,6 @@ def partitions(name):
 
 @app.route("/blockade/<name>/partitions", methods=['DELETE'])
 def delete_partitions(name):
-    if not request.headers['Content-Type'] == 'application/json':
-        abort(415)
-
     if not BlockadeManager.blockade_exists(name):
         abort(404)
 
