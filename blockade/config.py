@@ -102,6 +102,7 @@ class BlockadeContainerConfig(object):
 
 
 _DEFAULT_NETWORK_CONFIG = {
+    "driver": "default",
     "flaky": "30%",
     "slow": "75ms 100ms distribution normal",
     "duplicate": "5%",
@@ -151,10 +152,13 @@ class BlockadeConfig(object):
             # TODO log this to some debug stream?
             raise BlockadeConfigError("Failed to load config: " + str(err))
 
+    def is_udn(self):
+        return self.network['driver'] == 'udn'
+
     def __init__(self, containers, network=None):
         self.containers = containers
         self.sorted_containers = dependency_sorted(containers)
-        self.network = network or {}
+        self.network = network or _DEFAULT_NETWORK_CONFIG.copy()
 
 
 def _populate_env(value):

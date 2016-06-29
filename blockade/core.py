@@ -58,6 +58,15 @@ class Blockade(object):
                 sys.stdout.write(msg)
                 sys.stdout.flush()
 
+        if self.config.is_udn():
+            # Create custom network to allow docker resolve container hostnames
+            # via built-in DNS server.
+            response = self.docker_client.create_network(
+                                            self.state.blockade_net_name)
+            if response['Warning']:
+                raise BlockadeError("Error while creating network: '%s'" %
+                    (response['Warning']))
+
         for idx, container in enumerate(self.config.sorted_containers):
             name = container.name
 
@@ -111,9 +120,18 @@ class Blockade(object):
         # the docker api for port bindings is `internal:external`
         port_bindings = dict((v, k) for k, v in container.publish_ports.items())
 
+        if self.config.is_udn():
+            network_mode = self.state.blockade_net_name
+        else:
+            network_mode = None
+
         host_config = self.docker_client.create_host_config(
-            binds=container.volumes, dns=container.dns,
-            port_bindings=port_bindings, links=links)
+            binds=container.volumes,
+            dns=container.dns,
+            port_bindings=port_bindings,
+            network_mode=network_mode,
+            ulimits=[{'name': 'core', 'soft': 3145728, 'hard': 4194304}],
+            links=links)
 
         def create_container():
             # try to create container
@@ -178,7 +196,12 @@ class Blockade(object):
         network = container.get('NetworkSettings')
         ip = None
         if network:
-            ip = network.get('IPAddress')
+            if self.config.is_udn():
+                ip = network.get('Networks').get(
+                        self.state.blockade_net_name).get('IPAddress')
+            else:
+                ip = network.get('IPAddress')
+
             if ip:
                 extras['ip_address'] = ip
 
@@ -212,6 +235,13 @@ class Blockade(object):
 
         self.network.restore(self.state.blockade_id)
         self.state.destroy()
+
+        if self.config.is_udn():
+            try:
+                self.docker_client.remove_network(self.state.blockade_net_name)
+            except docker.errors.APIError as err:
+                if err.response.status_code != 404:
+                    raise
 
     def _get_docker_containers(self):
         self.state.load()

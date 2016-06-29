@@ -166,7 +166,14 @@ but the simplified pattern is::
 
 ``PERCENT`` and ``CORRELATION`` are both expressed as percentages.
 
+``driver``
+----------
 
+``driver`` specifies docker network stack. ``default`` will use standard Docker
+networking, that allows to connect containers by links. Other option is ``udn``.
+It will enable user defined network, that performs dns resolution of running
+containers and allows to create any-to-any communications. In case of ``udn``
+network environment variables with links will not bet set.
 
 .. _Docker run: https://docs.docker.com/engine/reference/run/
 .. _Docker volumes: https://docs.docker.com/engine/userguide/dockervolumes/

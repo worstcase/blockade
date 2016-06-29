@@ -19,6 +19,7 @@ import tempfile
 import shutil
 import traceback
 import json
+import time
 from io import StringIO
 from textwrap import dedent
 
@@ -199,6 +200,45 @@ class IntegrationTests(unittest.TestCase):
             except Exception:
                 print("Failed to destroy Blockade!")
                 traceback.print_exc(file=sys.stdout)
+
+    @unittest.skipIf(*INT_SKIP)
+    def test_containers_dns_discovery(self):
+
+        try:
+            config_path = "./blockade.yaml"
+            with open(config_path, "w") as f:
+                f.write(dedent('''\
+                    containers:
+                      zzz:
+                        container_name: zzz
+                        image: ubuntu:trusty
+                        command: sh -c "sleep 3 && ping -i1 -c3 aaa && sleep infinity"
+                      aaa:
+                        container_name: aaa
+                        image: ubuntu:trusty
+                        command: sh -c "sleep 3 && ping -i1 -c3 zzz && sleep infinity"
+                    network:
+                      driver: udn
+                    '''))
+
+            self.call_blockade("-c", config_path, "up")
+
+            # If container exited after this sleep, it probably means that
+            # ping wasn't able to resolve neighbour host
+            time.sleep(6)
+
+            stdout, _ = self.call_blockade("-c", config_path, "status", "--json")
+            parsed = json.loads(stdout)
+            statuses = [c["status"] for c in parsed]
+            self.assertEqual(statuses, ["UP", "UP"])
+
+        finally:
+            try:
+                self.call_blockade("-c", config_path, "destroy")
+            except Exception:
+                print("Failed to destroy Blockade!")
+                traceback.print_exc(file=sys.stdout)
+
 
     @unittest.skipIf(*INT_SKIP)
     def test_ping_link_ordering(self):

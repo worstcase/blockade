@@ -72,6 +72,11 @@ class BlockadeState(object):
         return self._blockade_id
 
     @property
+    def blockade_net_name(self):
+        '''Generate blockade nework name based on the blockade_id'''
+        return "%s_net" % self._blockade_id
+
+    @property
     def containers(self):
         '''Dictionary of container information'''
         return deepcopy(self._containers)
