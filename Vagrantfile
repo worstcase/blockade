@@ -26,9 +26,10 @@ python setup.py develop
 
 # apt version of tox is still too old in trusty
 pip install tox
-
 tox
+
 SCRIPT
+
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
@@ -53,4 +54,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   # kick off the tests automatically
   config.vm.provision "shell", inline: script
+
+  # clean up after the tests
+  config.vm.provision "shell", inline: "rm -rf /tmp/.blockade"
 end
