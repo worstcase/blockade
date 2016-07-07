@@ -102,7 +102,7 @@ class NetTests(unittest.TestCase):
             result = blockade.net.iptables_get_source_chains(blockade_id)
 
             self.assertEqual(1, mock_docker_run.call_count)
-            self.assertEqual(result, {"172.17.0.162": 1, "172.17.0.164": 1})
+            self.assertEqual({"172.17.0.162": 1, "172.17.0.164": 1}, result)
 
     def test_iptables_delete_blockade_rules_1(self):
         blockade_id = "e5dcf85cd2"
@@ -111,7 +111,7 @@ class NetTests(unittest.TestCase):
             mock_docker_run.return_value = _IPTABLES_LIST_FORWARD_1
             blockade.net.iptables_delete_blockade_rules(blockade_id)
 
-            self.assertEqual(mock_docker_run.call_count, 3)
+            self.assertEqual(3, mock_docker_run.call_count)
 
             # rules should be removed in reverse order
             expected_calls = [
@@ -119,7 +119,7 @@ class NetTests(unittest.TestCase):
                 mock.call("iptables -D FORWARD 4", image=expected_image),
                 mock.call("iptables -D FORWARD 3", image=expected_image)
             ]
-            self.assertEqual(mock_docker_run.call_args_list, expected_calls)
+            self.assertEqual(expected_calls, mock_docker_run.call_args_list)
 
     def test_iptables_delete_blockade_rules_2(self):
         blockade_id = "e5dcf85cd2"
@@ -127,7 +127,7 @@ class NetTests(unittest.TestCase):
             mock_docker_run.return_value = _IPTABLES_LIST_FORWARD_2
             blockade.net.iptables_delete_blockade_rules(blockade_id)
 
-            self.assertEqual(mock_docker_run.call_count, 1)
+            self.assertEqual(1, mock_docker_run.call_count)
 
     def test_iptables_delete_blockade_chains_1(self):
         blockade_id = "e5dcf85cd2"
@@ -136,7 +136,7 @@ class NetTests(unittest.TestCase):
             mock_docker_run.return_value = _IPTABLES_LIST_1
             blockade.net.iptables_delete_blockade_chains(blockade_id)
 
-            self.assertEqual(mock_docker_run.call_count, 5)
+            self.assertEqual(5, mock_docker_run.call_count)
 
             expected_calls = [
                 mock.call("iptables -n -L", image=expected_image),
@@ -144,7 +144,7 @@ class NetTests(unittest.TestCase):
                 mock.call("iptables -X blockade-e5dcf85cd2-p1", image=expected_image),
                 mock.call("iptables -F blockade-e5dcf85cd2-p2", image=expected_image),
                 mock.call("iptables -X blockade-e5dcf85cd2-p2", image=expected_image)]
-            self.assertEqual(mock_docker_run.call_args_list, expected_calls)
+            self.assertEqual(expected_calls, mock_docker_run.call_args_list)
 
     def test_iptables_delete_blockade_chains_2(self):
         blockade_id = "e5dcf85cd2"
@@ -152,7 +152,7 @@ class NetTests(unittest.TestCase):
             mock_docker_run.return_value = _IPTABLES_LIST_2
             blockade.net.iptables_delete_blockade_chains(blockade_id)
 
-            self.assertEqual(mock_docker_run.call_count, 1)
+            self.assertEqual(1, mock_docker_run.call_count)
 
     def test_iptables_insert_rule_1(self):
         expected_image=blockade.net.IPTABLES_DOCKER_IMAGE
@@ -201,12 +201,16 @@ class NetTests(unittest.TestCase):
 
     def test_partition_chain_parse(self):
         blockade_id = "abc123"
-        self.assertEqual(partition_chain_name(blockade_id, 1), "blockade-abc123-p1")
-        self.assertEqual(partition_chain_name(blockade_id, 2), "blockade-abc123-p2")
+        self.assertEqual(
+            "blockade-abc123-p1", partition_chain_name(blockade_id, 1)
+        )
+        self.assertEqual(
+            "blockade-abc123-p2", partition_chain_name(blockade_id, 2)
+        )
 
         index = parse_partition_index(blockade_id,
                                       partition_chain_name(blockade_id, 1))
-        self.assertEqual(index, 1)
+        self.assertEqual(1, index)
 
         with self.assertRaises(ValueError):
             parse_partition_index(blockade_id, "notablockade")

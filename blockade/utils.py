@@ -15,8 +15,6 @@
 #
 
 import docker
-import six
-import time
 
 
 # NOTE the values from the client are "byte strings".
