@@ -14,16 +14,15 @@ the containers.
 Check your Blockade install
 ---------------------------
 
-This guide assumes you have functional installation of Blockade and Docker,
-and can run as root (or via sudo). To check, run the following commands:
+To check your install, run the following commands:
 
 .. code-block:: bash
 
     # check docker
-    $ sudo docker info
+    $ docker info
 
     # check blockade
-    $ sudo blockade -h
+    $ blockade -h
 
 If you get an error from either command, you'll need to fix this before
 proceeding. See the `Docker installation docs`_ and :ref:`install`.
@@ -66,7 +65,7 @@ Now use the ``blockade up`` command to stand up our containers:
 
 .. code-block:: bash
 
-    $ sudo blockade up
+    $ blockade up
 
     NODE            CONTAINER ID    STATUS  IP              NETWORK    PARTITION
     c1              b9794aaeed42    UP      172.17.0.2      NORMAL
@@ -82,7 +81,7 @@ several lines:
 
 .. code-block:: bash
 
-    $ sudo blockade logs c2 | tail
+    $ blockade logs c2 | tail
     64 bytes from 172.17.0.2: icmp_req=59 ttl=64 time=0.067 ms
     64 bytes from 172.17.0.2: icmp_req=60 ttl=64 time=0.077 ms
     64 bytes from 172.17.0.2: icmp_req=61 ttl=64 time=0.077 ms
@@ -105,11 +104,11 @@ slow and the network to ``c3`` be flaky.
 
 .. code-block:: bash
 
-    $ sudo blockade slow c2
+    $ blockade slow c2
 
-    $ sudo blockade flaky c3
+    $ blockade flaky c3
 
-    $ sudo blockade status
+    $ blockade status
     NODE            CONTAINER ID    STATUS  IP              NETWORK    PARTITION
     c1              b9794aaeed42    UP      172.17.0.2      NORMAL
     c2              875885f54593    UP      172.17.0.4      SLOW
@@ -120,7 +119,7 @@ Now look at the logs for ``c2`` and ``c3`` again:
 
 .. code-block:: bash
 
-    $ sudo blockade logs c2 | tail
+    $ blockade logs c2 | tail
     64 bytes from 172.17.0.2: icmp_req=358 ttl=64 time=126 ms
     64 bytes from 172.17.0.2: icmp_req=359 ttl=64 time=0.077 ms
     64 bytes from 172.17.0.2: icmp_req=360 ttl=64 time=64.5 ms
@@ -131,7 +130,7 @@ Now look at the logs for ``c2`` and ``c3`` again:
     64 bytes from 172.17.0.2: icmp_req=365 ttl=64 time=90.2 ms
     64 bytes from 172.17.0.2: icmp_req=366 ttl=64 time=0.067 ms
 
-    $ sudo blockade logs c3 | tail
+    $ blockade logs c3 | tail
     64 bytes from 172.17.0.2: icmp_req=415 ttl=64 time=0.075 ms
     64 bytes from 172.17.0.2: icmp_req=416 ttl=64 time=0.079 ms
     64 bytes from 172.17.0.2: icmp_req=419 ttl=64 time=0.063 ms
@@ -151,9 +150,9 @@ Now let's use ``blockade fast`` to fix the network:
 
 .. code-block:: bash
 
-    $ sudo blockade fast --all
+    $ blockade fast --all
 
-    $ sudo blockade status
+    $ blockade status
     NODE            CONTAINER ID    STATUS  IP              NETWORK    PARTITION
     c1              6367a903f093    UP      172.17.0.2      NORMAL
     c2              35efaf92bba0    UP      172.17.0.4      NORMAL
@@ -172,9 +171,9 @@ Partitions are specified as groups of comma-separated container names:
 
 .. code-block:: bash
 
-    $ sudo blockade partition c1,c3 c2
+    $ blockade partition c1,c3 c2
 
-    $ sudo blockade status
+    $ blockade status
     NODE            CONTAINER ID    STATUS  IP              NETWORK    PARTITION
     c1              6367a903f093    UP      172.17.0.2      NORMAL     1
     c2              35efaf92bba0    UP      172.17.0.4      NORMAL     2
@@ -190,8 +189,8 @@ Restore the network with the ``join`` command:
 
 .. code-block:: bash
 
-    $ sudo blockade join
-    $ sudo blockade status
+    $ blockade join
+    $ blockade status
     NODE            CONTAINER ID    STATUS  IP              NETWORK    PARTITION
     c1              6367a903f093    UP      172.17.0.2      NORMAL
     c2              35efaf92bba0    UP      172.17.0.4      NORMAL
@@ -206,7 +205,7 @@ Once finished, kill the containers and restore the network with the
 
 .. code-block:: bash
 
-    $ sudo blockade destroy
+    $ blockade destroy
 
 
 Next steps

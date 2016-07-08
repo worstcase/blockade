@@ -99,8 +99,6 @@ Usage
 Blockade may be used from the command line manually. The commands are also
 intended to be easy to wrap and automate within tests, etc.
 
-Blockade must be run as root (or with sudo).
-
 
 Commands
 ========

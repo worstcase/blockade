@@ -14,14 +14,15 @@
 # limitations under the License.
 #
 
+from .errors import BlockadeError, InsufficientPermissionsError
+from .utils import docker_run
+
+import collections
 import itertools
 import re
-import subprocess
-
-from .errors import BlockadeError, InsufficientPermissionsError
-import collections
 
 BLOCKADE_CHAIN_PREFIX = "blockade-"
+IPTABLES_DOCKER_IMAGE = "vimagick/iptables:latest"
 
 
 class NetworkState(object):
@@ -65,35 +66,31 @@ class BlockadeNetwork(object):
         return iptables_get_source_chains(blockade_id)
 
     def get_container_device(self, docker_client, container_id):
-        try:
-            exec_handle = docker_client.exec_create(container_id, ['ip', 'link', 'show', 'eth0'])
-            res = docker_client.exec_start(exec_handle).decode('utf-8')
-            device = re.search('^([0-9]+):', res)
-            if not device:
-                raise BlockadeError(
-                    "Problem determining host network device for container '%s'" %
-                    (container_id))
-
-            peer_idx = int(device.group(1))
-
-            # all my experiments showed the host device index was
-            # one greater than its associated container device index
-            host_idx = peer_idx + 1
-            host_res = subprocess.check_output(['ip', 'link'])
-
-            host_rgx = '^%d: ([^:@]+)[:@]' % host_idx
-            host_match = re.search(host_rgx, host_res.decode(), re.M)
-            if not host_match:
-                raise BlockadeError(
-                    "Problem determining host network device for container '%s'" %
-                    (container_id))
-
-            host_device = host_match.group(1)
-            return host_device
-        except subprocess.CalledProcessError:
+        exec_handle = docker_client.exec_create(container_id, ['ip', 'link', 'show', 'eth0'])
+        res = docker_client.exec_start(exec_handle).decode('utf-8')
+        device = re.search('^([0-9]+):', res)
+        if not device:
             raise BlockadeError(
                 "Problem determining host network device for container '%s'" %
                 (container_id))
+
+        peer_idx = int(device.group(1))
+
+        # all my experiments showed the host device index was
+        # one greater than its associated container device index
+        host_idx = peer_idx + 1
+        host_res = docker_run('ip link', image=IPTABLES_DOCKER_IMAGE)
+
+        host_rgx = '^%d: ([^:@]+)[:@]' % host_idx
+        host_match = re.search(host_rgx, host_res, re.M)
+        if not host_match:
+            raise BlockadeError(
+                "Problem determining host network device for container '%s'" %
+                (container_id))
+
+        host_device = host_match.group(1)
+
+        return host_device
 
 
 def parse_partition_index(blockade_id, chain):
@@ -112,25 +109,13 @@ def partition_chain_name(blockade_id, partition_index):
 
 def iptables_call_output(*args):
     cmd = ["iptables", "-n"] + list(args)
-    try:
-        output = subprocess.check_output(cmd)
-        return output.decode().split("\n")
-    except subprocess.CalledProcessError as err:
-        error = "Problem calling '%s'" % " ".join(cmd)
-        if err.returncode == 3:
-            raise InsufficientPermissionsError(error)
-        raise BlockadeError(error)
+    output = docker_run(' '.join(cmd), image=IPTABLES_DOCKER_IMAGE)
+    return output.split('\n')
 
 
 def iptables_call(*args):
     cmd = ["iptables"] + list(args)
-    try:
-        subprocess.check_call(cmd)
-    except subprocess.CalledProcessError as err:
-        error = "Problem calling '%s'" % " ".join(cmd)
-        if err.returncode == 3:
-            raise InsufficientPermissionsError(error)
-        raise BlockadeError(error)
+    return docker_run(' '.join(cmd), image=IPTABLES_DOCKER_IMAGE)
 
 
 def iptables_get_chain_rules(chain):
@@ -315,38 +300,19 @@ def partition_containers(blockade_id, partitions):
 
 def traffic_control_restore(device):
     cmd = ["tc", "qdisc", "del", "dev", device, "root"]
-
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
-    _, stderr = p.communicate()
-    stderr = stderr.decode()
-
-    if p.returncode != 0:
-        if p.returncode == 2 and stderr:
-            if "No such file or directory" in stderr:
-                return
-
-        # TODO log error somewhere?
-        raise BlockadeError("Problem calling traffic control: " +
-                            " ".join(cmd))
+    docker_run(' '.join(cmd))
 
 
 def traffic_control_netem(device, params):
-    try:
-        cmd = ["tc", "qdisc", "replace", "dev", device,
-               "root", "netem"] + params
-        subprocess.check_call(cmd)
-
-    except subprocess.CalledProcessError:
-        # TODO log error somewhere?
-        raise BlockadeError("Problem calling traffic control: " +
-                            " ".join(cmd))
+    cmd = ["tc", "qdisc", "replace", "dev", device,
+           "root", "netem"] + params
+    docker_run(' '.join(cmd))
 
 
 def network_state(device):
+    cmd = ["tc", "qdisc", "show", "dev", device]
     try:
-        output = subprocess.check_output(
-            ["tc", "qdisc", "show", "dev", device]).decode()
+        output = docker_run(' '.join(cmd))
         # sloppy but good enough for now
         if " delay " in output:
             return NetworkState.SLOW
@@ -355,7 +321,5 @@ def network_state(device):
         if " duplicate " in output:
             return NetworkState.DUPLICATE
         return NetworkState.NORMAL
-
-    except subprocess.CalledProcessError:
-        # TODO log error somewhere?
+    except Exception:
         return NetworkState.UNKNOWN

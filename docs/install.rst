@@ -17,7 +17,7 @@ Blockade can be installed via ``pip`` or ``easy_install``:
     $ pip install blockade
 
 Because Blockade directly executes ``iptables`` and ``tc`` commands, it must
-be installed on a Linux system or VM and run as root.
+be installed on a Linux system or VM.
 
 
 OSX
