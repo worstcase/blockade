@@ -321,5 +321,5 @@ def network_state(device):
         if " duplicate " in output:
             return NetworkState.DUPLICATE
         return NetworkState.NORMAL
-    except:
+    except Exception:
         return NetworkState.UNKNOWN

@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+from .errors import BlockadeError
+
 import docker
 
 
@@ -43,7 +45,17 @@ def docker_run(command,
     for item in stdout:
         output += item
 
-    docker_client.stop(container=container.get('Id'))
+    output = output.decode('utf-8')
+
+    status_code = docker_client.wait(container=container.get('Id'))
+    if status_code == 2 and 'No such file or directory' in output:
+        docker_client.remove_container(container=container.get('Id'),
+                                       force=True)
+        return
+    elif status_code != 0:
+        err_msg = "Problem running Blockade command '%s'"
+        raise BlockadeError(err_msg % command)
+
     docker_client.remove_container(container=container.get('Id'), force=True)
 
-    return output.decode('utf-8')
+    return output
