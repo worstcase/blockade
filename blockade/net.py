@@ -300,19 +300,19 @@ def partition_containers(blockade_id, partitions):
 
 def traffic_control_restore(device):
     cmd = ["tc", "qdisc", "del", "dev", device, "root"]
-    docker_run(' '.join(cmd))
+    docker_run(' '.join(cmd), image=IPTABLES_DOCKER_IMAGE)
 
 
 def traffic_control_netem(device, params):
     cmd = ["tc", "qdisc", "replace", "dev", device,
            "root", "netem"] + params
-    docker_run(' '.join(cmd))
+    docker_run(' '.join(cmd), image=IPTABLES_DOCKER_IMAGE)
 
 
 def network_state(device):
     cmd = ["tc", "qdisc", "show", "dev", device]
     try:
-        output = docker_run(' '.join(cmd))
+        output = docker_run(' '.join(cmd), image=IPTABLES_DOCKER_IMAGE)
         # sloppy but good enough for now
         if " delay " in output:
             return NetworkState.SLOW
