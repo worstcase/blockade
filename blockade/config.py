@@ -98,7 +98,13 @@ class BlockadeContainerConfig(object):
             int(port) for port in
             (expose_ports or []) + list(self.publish_ports.values())
         ))
+
         self.environment = _dictify(environment, _populate_env, _populate_env)
+
+    def get_name(self, blockade_id):
+        if self.container_name:
+            return self.container_name
+        return '_'.join((blockade_id, self.name))
 
 
 _DEFAULT_NETWORK_CONFIG = {

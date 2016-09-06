@@ -298,7 +298,7 @@ class NetTests(unittest.TestCase):
             net.slow("mydevice")
             cmd = ["tc", "qdisc", "replace", "dev", "mydevice",
                    "root", "netem", "delay"] + slow_config.split()
-            mock_docker_run.assert_called_once_with(' '.join(cmd))
+            mock_docker_run.assert_called_once_with(' '.join(cmd), image=blockade.net.IPTABLES_DOCKER_IMAGE)
 
     def test_flaky(self):
         flaky_config = "30%"
@@ -309,7 +309,7 @@ class NetTests(unittest.TestCase):
             net.flaky("mydevice")
             cmd = ["tc", "qdisc", "replace", "dev", "mydevice",
                    "root", "netem", "loss"] + flaky_config.split()
-            mock_docker_run.assert_called_once_with(' '.join(cmd))
+            mock_docker_run.assert_called_once_with(' '.join(cmd), image=blockade.net.IPTABLES_DOCKER_IMAGE)
 
     def test_duplicate(self):
         duplicate_config = "5%"
@@ -320,7 +320,7 @@ class NetTests(unittest.TestCase):
             net.duplicate("mydevice")
             cmd = ["tc", "qdisc", "replace", "dev", "mydevice",
                    "root", "netem", "duplicate"] + duplicate_config.split()
-            mock_docker_run.assert_called_once_with(' '.join(cmd))
+            mock_docker_run.assert_called_once_with(' '.join(cmd), image=blockade.net.IPTABLES_DOCKER_IMAGE)
 
     def test_network_state_slow(self):
         self._network_state(NetworkState.SLOW, SLOW_QDISC_SHOW)
