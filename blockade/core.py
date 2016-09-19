@@ -275,17 +275,18 @@ class Blockade(object):
     def status(self):
         return self._get_all_containers()
 
-    def _get_stopped_containers(self, container_names=None, select_random=False):
-        return self._get_containers_with_state(ContainerStatus.DOWN, container_names, select_random)
-
     def _get_running_containers(self, container_names=None, select_random=False):
-        return self._get_containers_with_state(ContainerStatus.UP, container_names, select_random)
+        return self._get_containers_with_state(container_names, select_random, ContainerStatus.UP)
 
-    def _get_containers_with_state(self, container_state, container_names=None, select_random=False):
+    def _get_created_containers(self, container_names=None, select_random=False):
+        return self._get_containers_with_state(container_names, select_random,
+                                               ContainerStatus.UP, ContainerStatus.DOWN)
+
+    def _get_containers_with_state(self, container_names, select_random, *container_states):
         containers = self._get_all_containers()
 
         candidates = dict((c.name, c) for c in containers
-                       if c.status == container_state)
+                       if c.status in container_states)
 
         if select_random and candidates:
             return [random.choice(list(candidates.values()))]
@@ -297,8 +298,8 @@ class Blockade(object):
         for name in container_names:
             container = candidates.get(name)
             if not container:
-                raise BlockadeError("Container %s is not found or not '%s'"
-                                    % (name, container_state))
+                raise BlockadeError("Container %s is not found or not any of %s"
+                                    % (name, container_states))
             found.append(container)
         return found
 
@@ -338,7 +339,8 @@ class Blockade(object):
         self.docker_client.kill(container.container_id, signal)
 
     def stop(self, container_names, select_random=False):
-        containers = self._get_running_containers(container_names, select_random)
+        # it is valid to try to stop an already stopped container
+        containers = self._get_created_containers(container_names, select_random)
         for container in containers:
             self._stop(container)
 
@@ -346,7 +348,8 @@ class Blockade(object):
         self.docker_client.stop(container.container_id, timeout=DEFAULT_KILL_TIMEOUT)
 
     def start(self, container_names, select_random=False):
-        containers = self._get_stopped_containers(container_names, select_random)
+        # it is valid to try to start an already running container
+        containers = self._get_created_containers(container_names, select_random)
         container_names = [c.name for c in containers]
         for container in container_names:
             self._start(container)
