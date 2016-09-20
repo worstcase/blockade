@@ -330,32 +330,38 @@ class Blockade(object):
 
     def __with_running_container_device(self, container_names, func, select_random=False):
         containers = self._get_running_containers(container_names, select_random)
+        container_names = [c.name for c in containers]
         for container in containers:
             device = container.device
             func(device)
+        return container_names
 
     def flaky(self, container_names, select_random=False):
-        self.__with_running_container_device(container_names, self.network.flaky, select_random)
+        return self.__with_running_container_device(container_names, self.network.flaky, select_random)
 
     def slow(self, container_names, select_random=False):
-        self.__with_running_container_device(container_names, self.network.slow, select_random)
+        return self.__with_running_container_device(container_names, self.network.slow, select_random)
 
     def duplicate(self, container_names, select_random=False):
-        self.__with_running_container_device(container_names, self.network.duplicate, select_random)
+        return self.__with_running_container_device(container_names, self.network.duplicate, select_random)
 
     def fast(self, container_names, select_random=False):
-        self.__with_running_container_device(container_names, self.network.fast, select_random)
+        return self.__with_running_container_device(container_names, self.network.fast, select_random)
 
     def restart(self, container_names, select_random=False):
         containers = self._get_running_containers(container_names, select_random)
+        container_names = [c.name for c in containers]
         for container in containers:
             self._stop(container)
             self._start(container.name)
+        return container_names
 
     def kill(self, container_names, signal="SIGKILL"):
         containers = self._get_running_containers(container_names)
+        container_names = [c.name for c in containers]
         for container in containers:
             self._kill(container, signal)
+        return container_names
 
     def _kill(self, container, signal):
         self.docker_client.kill(container.container_id, signal)
@@ -363,8 +369,10 @@ class Blockade(object):
     def stop(self, container_names, select_random=False):
         # it is valid to try to stop an already stopped container
         containers = self._get_created_containers(container_names, select_random)
+        container_names = [c.name for c in containers]
         for container in containers:
             self._stop(container)
+        return container_names
 
     def _stop(self, container):
         self.docker_client.stop(container.container_id, timeout=DEFAULT_KILL_TIMEOUT)
@@ -375,6 +383,7 @@ class Blockade(object):
         container_names = [c.name for c in containers]
         for container in container_names:
             self._start(container)
+        return container_names
 
     def _start(self, container):
         container_id = self.state.container_id(container)
