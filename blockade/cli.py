@@ -47,6 +47,7 @@ def load_config(config_file):
             except IOError as e:
                 if e.errno != errno.ENOENT:
                     raise
+                return BlockadeConfig()
     except Exception as e:
         error = e
     raise BlockadeError("Failed to load config (from --config, "

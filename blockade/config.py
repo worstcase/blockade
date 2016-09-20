@@ -161,7 +161,7 @@ class BlockadeConfig(object):
     def is_udn(self):
         return self.network['driver'] == 'udn'
 
-    def __init__(self, containers, network=None):
+    def __init__(self, containers = {}, network=None):
         self.containers = containers
         self.sorted_containers = dependency_sorted(containers)
         self.network = network or _DEFAULT_NETWORK_CONFIG.copy()
