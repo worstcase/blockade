@@ -282,6 +282,14 @@ def cmd_daemon(opts):
     rest.start(data_dir=opts.data_dir, port=opts.port, debug=opts.debug)
 
 
+def cmd_add(opts):
+    """Add one or more existing Docker containers to a Blockade group
+    """
+    config = load_config(opts.config)
+    b = get_blockade(config, opts)
+    b.add_container(opts.containers)
+
+
 _CMDS = (("up", cmd_up),
          ("destroy", cmd_destroy),
          ("status", cmd_status),
@@ -296,7 +304,8 @@ _CMDS = (("up", cmd_up),
          ("fast", cmd_fast),
          ("partition", cmd_partition),
          ("join", cmd_join),
-         ("daemon", cmd_daemon))
+         ("daemon", cmd_daemon),
+         ("add", cmd_add))
 
 
 def setup_parser():
@@ -355,6 +364,9 @@ def setup_parser():
         help="Enable debug for the REST API")
     command_parsers["daemon"].add_argument("-p", "--port", action='store',
         type=int, default=5000, help="REST API port. Default is 5000.")
+
+    command_parsers["add"].add_argument("containers", nargs="*", metavar='CONTAINER',
+        help="Docker container to add to the Blockade group")
 
     return parser
 

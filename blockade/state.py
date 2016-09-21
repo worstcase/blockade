@@ -65,7 +65,7 @@ class BlockadeState(object):
 
         self._blockade_id = blockade_id or self._get_blockade_id_from_cwd()
         self._state_version = state_version
-        self._containers = None
+        self._containers = {}
 
     @property
     def blockade_id(self):
@@ -81,12 +81,18 @@ class BlockadeState(object):
         '''Dictionary of container information'''
         return deepcopy(self._containers)
 
+    def container_exists(self, container_id):
+        '''Checks if the container id is present in the state file'''
+        for name, container in self._containers.items():
+            if container_id in container.get('id', None):
+                return True
+        return False
+
     def container_id(self, name):
         '''Try to find the container ID with the specified name'''
-        if self._containers is not None:
-            container = self._containers.get(name, None)
-            if not container is None:
-                return container.get('id', None)
+        container = self._containers.get(name, None)
+        if not container is None:
+            return container.get('id', None)
         return None
 
     def initialize(self, containers):
