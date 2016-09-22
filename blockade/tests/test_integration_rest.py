@@ -123,7 +123,7 @@ class RestIntegrationTests(LiveServerTestCase):
     def test_add_docker_container_not_found(self):
         data = '''
             {
-                "container_ids": ["not_a_real_container"]
+                "containers": ["not_a_real_container"]
             }
         '''
         result = requests.put(self.url, headers=self.headers, data=data)

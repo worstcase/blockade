@@ -185,7 +185,7 @@ Check the help for Blockade daemon options ``blockade daemon -h``
     Content-Type: application/json
 
     {
-        "container_ids": ["docker_container_id"]
+        "containers": ["docker_container_id"]
     }
 
 **Response:**

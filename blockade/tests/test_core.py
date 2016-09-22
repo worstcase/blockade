@@ -84,8 +84,9 @@ class BlockadeCoreTests(unittest.TestCase):
         self.assertEqual(setofsets1, setofsets2)
 
     def test_add_docker_containers(self):
-        container_ids = ['id1', 'id2', 'id3']
+        containers = ['id1', 'id2', 'id3']
 
+        self.docker_client.inspect_container.side_effect = lambda id: {"Id": id}
         self.network.get_container_device.side_effect = lambda dc, y: "veth"+y
         self.state.exists.side_effect = lambda: False
         self.state.container_exists.side_effect = lambda c_id: False
@@ -97,7 +98,7 @@ class BlockadeCoreTests(unittest.TestCase):
                      network=self.network,
                      docker_client=self.docker_client)
 
-        b.add_container(container_ids)
+        b.add_container(containers)
 
         self.assertEqual(self.state.update.call_count, 1)
         self.assertEqual(len(self.state.containers), 3)

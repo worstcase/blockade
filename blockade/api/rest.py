@@ -95,9 +95,9 @@ def add(name):
         abort(404)
 
     data = request.get_json()
-    container_ids = data.get('container_ids')
+    containers = data.get('containers')
     b = BlockadeManager.get_blockade(name)
-    b.add_container(container_ids)
+    b.add_container(containers)
 
     return '', 204
 

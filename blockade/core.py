@@ -190,12 +190,9 @@ class Blockade(object):
         container_id = state_container['id']
 
         try:
-            container = self.docker_client.inspect_container(container_id)
-        except docker.errors.APIError as err:
-            if err.response.status_code == 404:
-                return Container(name, container_id, ContainerStatus.MISSING)
-            else:
-                raise
+            container = self._inspect_container(container_id)
+        except DockerContainerNotFound:
+            return Container(name, container_id, ContainerStatus.MISSING)
 
         state_dict = container.get('State')
         if state_dict and state_dict.get('Running'):
@@ -445,25 +442,26 @@ class Blockade(object):
         container = self._get_running_container(container_name)
         return self.docker_client.logs(container.container_id)
 
-    def _container_exists(self, container_id):
+    def _inspect_container(self, container_id):
         try:
-            self.docker_client.inspect_container(container_id)
+            return self.docker_client.inspect_container(container_id)
         except docker.errors.APIError as err:
             if err.response.status_code == 404:
-                return False
+                err_msg = "Aborting. Docker container not found: %s"
+                raise DockerContainerNotFound(err_msg % container_id)
             else:
                 raise
-        return True
 
-    def add_container(self, container_ids):
+    # containers can be the Docker ID or name
+    def add_container(self, containers):
         if self.state.exists():
             self.state.load()
 
         updated_containers = self.state.containers
-        for container_id in container_ids:
-            if not self._container_exists(container_id):
-                err_msg = "Aborting. Docker container not found: %s"
-                raise DockerContainerNotFound(err_msg % container_id)
+        for container in containers:
+            container_info = self._inspect_container(container)
+            # just use the partial id
+            container_id = container_info.get('Id')[:12]
             if self.state.container_exists(container_id):
                 continue
             name = self.state.blockade_id + "_" + container_id
