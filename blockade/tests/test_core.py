@@ -82,3 +82,22 @@ class BlockadeCoreTests(unittest.TestCase):
         setofsets1 = frozenset(frozenset(n) for n in partitions1)
         setofsets2 = frozenset(frozenset(n) for n in partitions2)
         self.assertEqual(setofsets1, setofsets2)
+
+    def test_add_docker_containers(self):
+        container_ids = ['id1', 'id2', 'id3']
+
+        self.network.get_container_device.side_effect = lambda dc, y: "veth"+y
+        self.state.exists.side_effect = lambda: False
+        self.state.container_exists.side_effect = lambda c_id: False
+        self.state.containers = {}
+        self.state.blockade_id = self.blockade_id
+
+        b = Blockade(BlockadeConfig(),
+                     state=self.state,
+                     network=self.network,
+                     docker_client=self.docker_client)
+
+        b.add_container(container_ids)
+
+        self.assertEqual(self.state.update.call_count, 1)
+        self.assertEqual(len(self.state.containers), 3)
