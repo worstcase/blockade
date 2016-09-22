@@ -25,6 +25,7 @@ import time
 from .errors import AlreadyInitializedError
 from .errors import BlockadeContainerConflictError
 from .errors import BlockadeError
+from .errors import DockerContainerNotFound
 from .errors import InsufficientPermissionsError
 from .net import BlockadeNetwork
 from .net import NetworkState
@@ -462,7 +463,7 @@ class Blockade(object):
         for container_id in container_ids:
             if not self._container_exists(container_id):
                 err_msg = "Aborting. Docker container not found: %s"
-                raise BlockadeError(err_msg % container_id)
+                raise DockerContainerNotFound(err_msg % container_id)
             if self.state.container_exists(container_id):
                 continue
             name = self.state.blockade_id + "_" + container_id

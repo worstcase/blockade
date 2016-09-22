@@ -19,6 +19,7 @@ from gevent.wsgi import WSGIServer
 
 from blockade.api.manager import BlockadeManager
 from blockade.config import BlockadeConfig
+from blockade.errors import DockerContainerNotFound
 from blockade.errors import InvalidBlockadeName
 
 import json
@@ -52,6 +53,11 @@ def invalid_blockade_name(error):
     return 'Invalid blockade name', 400
 
 
+@app.errorhandler(DockerContainerNotFound)
+def docker_container_not_found(error):
+    return 'Docker container not found', 400
+
+
 ################### ROUTES ###################
 
 
@@ -76,6 +82,22 @@ def create(name):
 
     b = BlockadeManager.get_blockade(name)
     containers = b.create()
+
+    return '', 204
+
+
+@app.route("/blockade/<name>", methods=['PUT'])
+def add(name):
+    if not request.headers['Content-Type'] == 'application/json':
+        abort(415)
+
+    if not BlockadeManager.blockade_exists(name):
+        abort(404)
+
+    data = request.get_json()
+    container_ids = data.get('container_ids')
+    b = BlockadeManager.get_blockade(name)
+    b.add_container(container_ids)
 
     return '', 204
 
