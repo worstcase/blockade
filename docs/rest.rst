@@ -174,6 +174,26 @@ Check the help for Blockade daemon options ``blockade daemon -h``
         }
     }
 
+``Add an existing Docker container to a Blockade``
+----------------------------------------------------------------
+
+**Example request:**
+
+::
+
+    PUT /blockade/<name>
+    Content-Type: application/json
+
+    {
+        "container_ids": ["docker_container_id"]
+    }
+
+**Response:**
+
+::
+
+    204 No content
+
 ``Delete a Blockade``
 ---------------------
 
