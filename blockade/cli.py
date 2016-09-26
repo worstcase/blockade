@@ -20,6 +20,7 @@ import argparse
 import errno
 import json
 import os
+import random
 import sys
 import traceback
 import yaml
@@ -110,16 +111,20 @@ def _add_container_selection_options(parser):
                         help='Container to select')
     parser.add_argument('--all', action='store_true',
                         help='Select all containers')
+    parser.add_argument('--random', action='store_true',
+                        help='Select a random container')
 
 
 def _check_container_selections(opts):
     if opts.containers and opts.all:
         raise BlockadeError("Either specify individual containers "
                             "or --all, but not both")
-    elif not (opts.containers or opts.all):
-        raise BlockadeError("Specify individual containers or --all")
+    elif opts.all and opts.random:
+        raise BlockadeError("Specify either --all or --random, but not both")
+    elif not (opts.containers or opts.all or opts.random):
+        raise BlockadeError("Specify individual containers or --all or --random")
 
-    return (opts.containers or None, opts.all)
+    return (opts.containers or None, opts.all, opts.random)
 
 
 def cmd_up(opts):
@@ -149,15 +154,16 @@ def cmd_status(opts):
 
 
 def __with_containers(opts, func, **kwargs):
-    containers, select_all = _check_container_selections(opts)
+    containers, select_all, select_random = _check_container_selections(opts)
     config = load_config(opts.config)
     b = get_blockade(config, opts)
     b.state.load()
 
     configured_containers = set(b.state.containers.keys())
-    container_names = configured_containers if select_all or None else configured_containers.intersection(containers)
+    container_names = configured_containers if select_all or (select_random and not containers) else configured_containers.intersection(containers)
 
     if len(container_names) > 0:
+        kwargs['select_random'] = select_random
         return func(b, container_names, **kwargs)
     else:
         raise BlockadeError('selection does not match any container')
@@ -173,7 +179,7 @@ def cmd_kill(opts):
     """Kill some or all containers
     """
     signal = opts.signal if hasattr(opts, 'signal') else "SIGKILL"
-    __with_containers(opts, Blockade.kill, signal = signal)
+    __with_containers(opts, Blockade.kill, signal=signal)
 
 
 def cmd_stop(opts):
