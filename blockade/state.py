@@ -81,13 +81,6 @@ class BlockadeState(object):
         '''Dictionary of container information'''
         return deepcopy(self._containers)
 
-    def container_exists(self, container_id):
-        '''Checks if the container id is present in the state file'''
-        for name, container in self._containers.items():
-            if container_id in container.get('id', None):
-                return True
-        return False
-
     def container_id(self, name):
         '''Try to find the container ID with the specified name'''
         container = self._containers.get(name, None)

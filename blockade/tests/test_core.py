@@ -89,7 +89,7 @@ class BlockadeCoreTests(unittest.TestCase):
         self.docker_client.inspect_container.side_effect = lambda id: {"Id": id}
         self.network.get_container_device.side_effect = lambda dc, y: "veth"+y
         self.state.exists.side_effect = lambda: False
-        self.state.container_exists.side_effect = lambda c_id: False
+        self.state.container_id.side_effect = lambda name: None
         self.state.containers = {}
         self.state.blockade_id = self.blockade_id
 

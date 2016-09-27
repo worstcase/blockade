@@ -274,12 +274,9 @@ class Blockade(object):
         self.state.load()
         containers = self._get_blockade_docker_containers()
         # Search for and add any containers that were added to the state
-        # with the name: blockadeId_dockerId
-        prefix = self.state.blockade_id + "_"
         for state_container_name in self.state.containers:
             if state_container_name not in containers.keys():
-                # strip prefix
-                container_id = state_container_name[len(prefix):]
+                container_id = self.state.container_id(state_container_name)
                 filters = {"id": container_id}
                 for container in self.docker_client.containers(all=True, filters=filters):
                     containers[state_container_name] = container
@@ -460,11 +457,17 @@ class Blockade(object):
         updated_containers = self.state.containers
         for container in containers:
             container_info = self._inspect_container(container)
-            # just use the partial id
-            container_id = container_info.get('Id')[:12]
-            if self.state.container_exists(container_id):
+            container_id = container_info.get('Id')
+            if container_id.startswith(container):
+                # if container is the docker id, use the partial docker id
+                name = container_id[:12]
+            else:
+                name = container
+
+            # check if this name is already in the state file
+            if self.state.container_id(name) is not None:
                 continue
-            name = self.state.blockade_id + "_" + container_id
+
             device = self._init_container(container_id, name)
             updated_containers[name] = {'id': container_id, 'device': device}
 
