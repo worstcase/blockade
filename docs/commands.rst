@@ -197,3 +197,14 @@ system (``blockade --help``).
     usage: blockade join
 
     Restore full networking between containers
+
+``add``
+----------
+
+::
+
+    usage: blockade add [CONTAINER [CONTAINER ...]]
+
+    Add existing Docker containers to a Blockade
+
+      CONTAINER   Container to add

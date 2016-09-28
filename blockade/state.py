@@ -65,7 +65,7 @@ class BlockadeState(object):
 
         self._blockade_id = blockade_id or self._get_blockade_id_from_cwd()
         self._state_version = state_version
-        self._containers = None
+        self._containers = {}
 
     @property
     def blockade_id(self):
@@ -83,10 +83,9 @@ class BlockadeState(object):
 
     def container_id(self, name):
         '''Try to find the container ID with the specified name'''
-        if self._containers is not None:
-            container = self._containers.get(name, None)
-            if not container is None:
-                return container.get('id', None)
+        container = self._containers.get(name, None)
+        if not container is None:
+            return container.get('id', None)
         return None
 
     def initialize(self, containers):

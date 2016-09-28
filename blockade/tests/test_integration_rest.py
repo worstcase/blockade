@@ -119,6 +119,16 @@ class RestIntegrationTests(LiveServerTestCase):
         result = requests.delete(url)
         self._assert_join()
 
+    @unittest.skipIf(*INT_SKIP)
+    def test_add_docker_container_not_found(self):
+        data = '''
+            {
+                "containers": ["not_a_real_container"]
+            }
+        '''
+        result = requests.put(self.url, headers=self.headers, data=data)
+        assert result.status_code == 400
+
     def _assert_container_status(self, container_name, container_status):
         result_data = self._get_blockade()
         status = result_data.get('containers').get(container_name).get('status')

@@ -262,3 +262,24 @@ class RestTests(unittest.TestCase):
 
             self.assertEqual(1, self.blockade.create.call_count)
             self.assertEqual(204, result.status_code)
+
+
+    def test_add_docker_container(self):
+        data = '''
+            {
+                "container_ids": ["docker_container_id"]
+            }
+        '''
+        with mock.patch.object(BlockadeManager,
+                               'get_blockade',
+                               return_value=self.blockade), \
+             mock.patch.object(BlockadeManager,
+                               'blockade_exists',
+                               return_value=True):
+
+            result = self.client.put('/blockade/%s' % self.name,
+                                     headers=self.headers,
+                                     data=data)
+
+            self.assertEqual(204, result.status_code)
+            self.assertEqual(1, self.blockade.add_container.call_count)

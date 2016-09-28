@@ -25,6 +25,7 @@ import time
 from .errors import AlreadyInitializedError
 from .errors import BlockadeContainerConflictError
 from .errors import BlockadeError
+from .errors import DockerContainerNotFound
 from .errors import InsufficientPermissionsError
 from .net import BlockadeNetwork
 from .net import NetworkState
@@ -189,12 +190,9 @@ class Blockade(object):
         container_id = state_container['id']
 
         try:
-            container = self.docker_client.inspect_container(container_id)
-        except docker.errors.APIError as err:
-            if err.response.status_code == 404:
-                return Container(name, container_id, ContainerStatus.MISSING)
-            else:
-                raise
+            container = self._inspect_container(container_id)
+        except DockerContainerNotFound:
+            return Container(name, container_id, ContainerStatus.MISSING)
 
         state_dict = container.get('State')
         if state_dict and state_dict.get('Running'):
@@ -237,7 +235,7 @@ class Blockade(object):
         return Container(name, container_id, container_status, **extras)
 
     def destroy(self, force=False):
-        containers = self._get_docker_containers()
+        containers = self._get_blockade_docker_containers()
         for container in list(containers.values()):
             container_id = container['Id']
             self.docker_client.stop(container_id, timeout=DEFAULT_KILL_TIMEOUT)
@@ -253,7 +251,8 @@ class Blockade(object):
                 if err.response.status_code != 404:
                     raise
 
-    def _get_docker_containers(self):
+    # Get the containers that are part of the initial Blockade group
+    def _get_blockade_docker_containers(self):
         self.state.load()
         containers = {}
         filters = {"label": ["blockade.id=" + self.state.blockade_id]}
@@ -271,6 +270,18 @@ class Blockade(object):
                     break
         return containers
 
+    def _get_docker_containers(self):
+        self.state.load()
+        containers = self._get_blockade_docker_containers()
+        # Search for and add any containers that were added to the state
+        for state_container_name in self.state.containers:
+            if state_container_name not in containers.keys():
+                container_id = self.state.container_id(state_container_name)
+                filters = {"id": container_id}
+                for container in self.docker_client.containers(all=True, filters=filters):
+                    containers[state_container_name] = container
+        return containers
+
     def _get_all_containers(self):
         self.state.load()
         containers = []
@@ -280,6 +291,7 @@ class Blockade(object):
         for name in docker_containers.keys():
             container = self._get_container_description(name, ip_partitions=ip_partitions)
             containers.append(container)
+
         return containers
 
     def status(self):
@@ -426,6 +438,41 @@ class Blockade(object):
     def logs(self, container_name):
         container = self._get_running_container(container_name)
         return self.docker_client.logs(container.container_id)
+
+    def _inspect_container(self, container_id):
+        try:
+            return self.docker_client.inspect_container(container_id)
+        except docker.errors.APIError as err:
+            if err.response.status_code == 404:
+                err_msg = "Aborting. Docker container not found: %s"
+                raise DockerContainerNotFound(err_msg % container_id)
+            else:
+                raise
+
+    # containers can be the Docker ID or name
+    def add_container(self, containers):
+        if self.state.exists():
+            self.state.load()
+
+        updated_containers = self.state.containers
+        for container in containers:
+            container_info = self._inspect_container(container)
+            container_id = container_info.get('Id')
+            if container_id.startswith(container):
+                # if container is the docker id, use the partial docker id
+                name = container_id[:12]
+            else:
+                name = container
+
+            # check if this name is already in the state file
+            if self.state.container_id(name) is not None:
+                continue
+
+            device = self._init_container(container_id, name)
+            updated_containers[name] = {'id': container_id, 'device': device}
+
+        # persist the state
+        self.state.update(updated_containers)
 
 
 class Container(object):

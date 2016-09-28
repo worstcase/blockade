@@ -53,3 +53,7 @@ class InsufficientPermissionsError(BlockadeError):
 class InvalidBlockadeName(BlockadeError):
     """Invalid blockade name
     """
+
+class DockerContainerNotFound(BlockadeError):
+    """Docker container not found
+    """
