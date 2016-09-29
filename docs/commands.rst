@@ -55,6 +55,7 @@ system (``blockade --help``).
       CONTAINER   Container to select
 
       --all       Select all containers
+      --random    Select a random container
 
 ``stop``
 ----------
@@ -68,6 +69,7 @@ system (``blockade --help``).
       CONTAINER   Container to select
 
       --all       Select all containers
+      --random    Select a random container
 
 ``kill``
 ----------
@@ -81,6 +83,7 @@ system (``blockade --help``).
       CONTAINER   Container to select
 
       --all       Select all containers
+      --random    Select a random container
 
     optional arguments:
 
@@ -98,6 +101,7 @@ system (``blockade --help``).
       CONTAINER   Container to select
 
       --all       Select all containers
+      --random    Select a random container
 
 ``logs``
 --------
@@ -122,6 +126,7 @@ system (``blockade --help``).
       CONTAINER   Container to select
 
       --all       Select all containers
+      --random    Select a random container
 
 ``duplicate``
 ---------
@@ -135,6 +140,7 @@ system (``blockade --help``).
       CONTAINER   Container to select
 
       --all       Select all containers
+      --random    Select a random container
 
 ``slow``
 --------
@@ -148,6 +154,7 @@ system (``blockade --help``).
       CONTAINER   Container to select
 
       --all       Select all containers
+      --random    Select a random container
 
 ``fast``
 --------
@@ -161,6 +168,7 @@ system (``blockade --help``).
       CONTAINER   Container to select
 
       --all       Select all containers
+      --random    Select a random container
 
 
 ``partition``

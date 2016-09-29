@@ -16,8 +16,13 @@ Blockade can be installed via ``pip`` or ``easy_install``:
 
     $ pip install blockade
 
-Because Blockade directly executes ``iptables`` and ``tc`` commands, it must
-be installed on a Linux system or VM.
+Because Blockade executes ``iptables`` and ``tc`` commands, it must
+be installed on a Linux system or VM. It must be run as a user that
+has an ability to launch Docker containers. Typically this is done
+by adding the user to the ``docker`` group.
+
+It is potentially possibly to make Blockade talk to a remote Docker API
+but this is not yet supported.
 
 
 OSX
