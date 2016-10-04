@@ -42,7 +42,11 @@ class Blockade(object):
         self.config = config
         self.state = state or BlockadeState(blockade_id=blockade_id)
         self.network = network or BlockadeNetwork(config)
-        self.docker_client = docker_client or docker.Client()
+
+        default_client = docker.Client(
+            **docker.utils.kwargs_from_env(assert_hostname=False)
+        )
+        self.docker_client = docker_client or default_client
 
     def create(self, verbose=False, force=False):
         container_state = {}
