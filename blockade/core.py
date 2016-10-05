@@ -360,8 +360,8 @@ class Blockade(object):
             self._start(container.name)
         return container_names
 
-    def kill(self, container_names, signal="SIGKILL"):
-        containers = self._get_running_containers(container_names)
+    def kill(self, container_names, signal="SIGKILL", select_random=False):
+        containers = self._get_running_containers(container_names, select_random)
         container_names = [c.name for c in containers]
         for container in containers:
             self._kill(container, signal)
