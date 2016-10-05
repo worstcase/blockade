@@ -79,7 +79,11 @@ class BlockadeNetwork(object):
         # all my experiments showed the host device index was
         # one greater than its associated container device index
         host_idx = peer_idx + 1
-        host_res = docker_run('ip link', image=IPTABLES_DOCKER_IMAGE)
+        host_res = docker_run(
+            'ip link',
+            image=IPTABLES_DOCKER_IMAGE,
+            docker_client=docker_client
+        )
 
         host_rgx = '^%d: ([^:@]+)[:@]' % host_idx
         host_match = re.search(host_rgx, host_res, re.M)

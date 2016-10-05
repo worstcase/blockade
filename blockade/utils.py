@@ -25,9 +25,13 @@ import docker
 def docker_run(command,
                image='ubuntu:trusty',
                network_mode='host',
-               privileged=True):
+               privileged=True,
+               docker_client=None):
 
-    docker_client = docker.Client()
+    default_client = docker.Client(
+        **docker.utils.kwargs_from_env(assert_hostname=False)
+    )
+    docker_client = docker_client or default_client
 
     try:
         container = docker_client.create_container(image=image, command=command)
