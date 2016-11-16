@@ -26,7 +26,7 @@ but this is not yet supported.
 
 
 OSX or Windows
----
+--------------
 
 If you are using OSX or Windows, Blockade and Docker cannot yet be truly run natively.
 Use the included ``Vagrantfile`` or another approach to get Docker and
