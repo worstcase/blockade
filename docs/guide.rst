@@ -30,7 +30,7 @@ proceeding. See the `Docker installation docs`_ and :ref:`install`.
 Set up your Blockade config
 ---------------------------
 
-Now create a new directory and in it create a ``blockade.yml`` file with
+Now create a new directory and in it create a ``blockade.yaml`` file with
 these contents:
 
 .. code-block:: yaml
