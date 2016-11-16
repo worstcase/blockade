@@ -1,6 +1,12 @@
 
 VAGRANTFILE_API_VERSION = "2"
 BOX_NAME = ENV['BOX_NAME'] || "ubuntu/trusty64"
+module OS
+    def OS.windows?
+        (/cygwin|mswin|mingw|bccwin|wince|emx/ =~ RUBY_PLATFORM) != nil
+    end
+end
+
 script = <<SCRIPT
 #!/bin/bash -e
 
@@ -26,10 +32,26 @@ python setup.py develop
 
 # apt version of tox is still too old in trusty
 pip install tox
+
+SCRIPT
+
+run_tox_from_windows = <<SCRIPT
+#!/bin/bash -e
+# We have to copy the working folder onto vagrant home. Tox won't start from inside mounted /vagrant folder in Windows
+# See links below:
+# https://github.com/gratipay/gratipay.com/issues/2327
+# http://stackoverflow.com/questions/24640819/protocol-error-setting-up-virtualenvironment-through-vagrant-on-ubuntu
+
+cp -R /vagrant/* ~
+cd ~
 tox
 
 SCRIPT
 
+run_tox_default = <<SCRIPT
+#!/bin/bash -e
+tox
+SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
@@ -54,6 +76,11 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   # kick off the tests automatically
   config.vm.provision "shell", inline: script
+  if OS.windows?
+    config.vm.provision "shell", inline: run_tox_from_windows
+  else
+    config.vm.provision "shell", inline: run_tox_default
+  end
 
   # clean up after the tests
   config.vm.provision "shell", inline: "rm -rf /tmp/.blockade"
