@@ -25,10 +25,10 @@ It is potentially possibly to make Blockade talk to a remote Docker API
 but this is not yet supported.
 
 
-OSX
----
+OSX or Windows
+--------------
 
-If you are using OSX, Blockade and Docker cannot yet be truly run natively.
+If you are using OSX or Windows, Blockade and Docker cannot yet be truly run natively.
 Use the included ``Vagrantfile`` or another approach to get Docker and
 Blockade installed into a Linux VM. If you have `Vagrant`_ installed, running
 ``vagrant up`` from the Blockade checkout directory should get you started.
