@@ -50,6 +50,7 @@ SCRIPT
 
 run_tox_default = <<SCRIPT
 #!/bin/bash -e
+cd /vagrant
 tox
 SCRIPT
 
