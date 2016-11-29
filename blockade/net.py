@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-from .errors import BlockadeError, InsufficientPermissionsError
+from .errors import BlockadeError
 from .utils import docker_run
 
 import collections
@@ -66,19 +66,17 @@ class BlockadeNetwork(object):
         return iptables_get_source_chains(blockade_id)
 
     def get_container_device(self, docker_client, container_id):
-        exec_handle = docker_client.exec_create(container_id, ['ip', 'link', 'show', 'eth0'])
+        exec_handle = docker_client.exec_create(container_id, ['cat', '/sys/class/net/eth0/ifindex'])
         res = docker_client.exec_start(exec_handle).decode('utf-8')
-        device = re.search('^([0-9]+):', res)
+        device = res.strip()
         if not device:
             raise BlockadeError(
-                "Problem determining host network device for container '%s'" %
-                (container_id))
-
-        peer_idx = int(device.group(1))
+                "Problem determining host network device for container '%s': got %s" %
+                (container_id, res))
 
         # all my experiments showed the host device index was
         # one greater than its associated container device index
-        host_idx = peer_idx + 1
+        host_idx = int(device) + 1
         host_res = docker_run(
             'ip link',
             image=IPTABLES_DOCKER_IMAGE,
@@ -89,8 +87,8 @@ class BlockadeNetwork(object):
         host_match = re.search(host_rgx, host_res, re.M)
         if not host_match:
             raise BlockadeError(
-                "Problem determining host network device for container '%s'" %
-                (container_id))
+                "Problem determining host network device for container '%s': ip link shows: \n%s" %
+                (container_id, host_res))
 
         host_device = host_match.group(1)
 
