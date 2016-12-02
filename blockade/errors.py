@@ -57,3 +57,7 @@ class InvalidBlockadeName(BlockadeError):
 class DockerContainerNotFound(BlockadeError):
     """Docker container not found
     """
+
+class BlockadeNotFound(BlockadeError):
+    """Blockade not found
+    """
