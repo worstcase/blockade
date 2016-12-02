@@ -19,8 +19,6 @@ from clint.textui import puts, puts_err, colored, columns
 import argparse
 import errno
 import json
-import os
-import random
 import sys
 import traceback
 import yaml
@@ -34,12 +32,17 @@ from .net import BlockadeNetwork
 from .state import BlockadeState
 
 
-def load_config(config_file):
+def load_config(config_file=None):
     error = None
-    paths = [config_file] if config_file else ["blockade.yaml",
-                                               "blockade.yml"]
     try:
-        for path in paths:
+        # if a path was specified, load only from there and fail if not found
+        if config_file is not None:
+            with open(config_file) as f:
+                d = yaml.safe_load(f)
+                return BlockadeConfig.from_dict(d)
+
+        # otherwise, try the default paths
+        for path in ("blockade.yaml", "blockade.yml"):
             try:
                 with open(path) as f:
                     d = yaml.safe_load(f)
@@ -47,12 +50,15 @@ def load_config(config_file):
             except IOError as e:
                 if e.errno != errno.ENOENT:
                     raise
-                return BlockadeConfig()
+
+        # finally, return a "blank" config. This may be an empty blockade that
+        # containers will later be added to
+        return BlockadeConfig()
     except Exception as e:
         error = e
     raise BlockadeError("Failed to load config (from --config, "
                         "./blockade.yaml, or ./blockade.yml)" +
-                        (str(error) if error else ""))
+                        (": " + str(error) if error else ""))
 
 
 def get_blockade(config, opts):

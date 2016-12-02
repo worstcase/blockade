@@ -239,7 +239,6 @@ class IntegrationTests(unittest.TestCase):
                 print("Failed to destroy Blockade!")
                 traceback.print_exc(file=sys.stdout)
 
-
     @unittest.skipIf(*INT_SKIP)
     def test_ping_link_ordering(self):
         config_path = example_config_path("ping/blockade.yaml")
