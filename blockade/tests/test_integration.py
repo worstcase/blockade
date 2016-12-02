@@ -39,6 +39,8 @@ INT_SKIP = (not os.getenv(INT_ENV), "export %s=1 to run" % INT_ENV)
 class FakeExit(BaseException):
     def __init__(self, rc):
         self.rc = rc
+        self.stdout = None
+        self.stderr = None
 
 
 def example_config_path(filename):
@@ -115,6 +117,8 @@ class IntegrationTests(unittest.TestCase):
                     blockade.cli.main(args)
                 except FakeExit as e:
                     if e.rc != 0:
+                        e.stderr = stderr.getvalue()
+                        e.stdout = stdout.getvalue()
                         raise
                 return (stdout.getvalue(), stderr.getvalue())
 
@@ -124,6 +128,24 @@ class IntegrationTests(unittest.TestCase):
                 self.call_blockade("--notarealarg")
 
             self.assertEqual(cm.exception.rc, 2)
+
+    def test_version(self):
+        stdout, _ = self.call_blockade("version")
+        self.assertIn(blockade.__version__, stdout)
+
+    def test_bad_docker_api(self):
+        prev_docker_host_env = os.environ.get("DOCKER_HOST")
+        os.environ["DOCKER_HOST"] = "notarealhostatall:12345"
+        try:
+
+            with self.assertRaises(FakeExit) as cm:
+                _, stderr = self.call_blockade("status")
+            self.assertIn("Unable to connect to Docker", cm.exception.stderr)
+        finally:
+            if prev_docker_host_env is not None:
+                os.environ["DOCKER_HOST"] = prev_docker_host_env
+            else:
+                del os.environ["DOCKER_HOST"]
 
     @unittest.skipIf(*INT_SKIP)
     def test_containers(self):
@@ -295,3 +317,4 @@ class IntegrationTests(unittest.TestCase):
             except Exception:
                 print("Failed to destroy Blockade!")
                 traceback.print_exc(file=sys.stdout)
+

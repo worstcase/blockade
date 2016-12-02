@@ -30,6 +30,8 @@ from .errors import BlockadeError
 from .errors import InsufficientPermissionsError
 from .net import BlockadeNetwork
 from .state import BlockadeState
+from .utils import check_docker
+
 
 
 def load_config(config_file=None):
@@ -296,6 +298,13 @@ def cmd_add(opts):
     b.add_container(opts.containers)
 
 
+def cmd_version(opts):
+    """Show the Blockade version information
+    """
+    import blockade.version
+    puts("Blockade " + blockade.version.__version__)
+
+
 _CMDS = (("up", cmd_up),
          ("destroy", cmd_destroy),
          ("status", cmd_status),
@@ -311,7 +320,8 @@ _CMDS = (("up", cmd_up),
          ("partition", cmd_partition),
          ("join", cmd_join),
          ("daemon", cmd_daemon),
-         ("add", cmd_add))
+         ("add", cmd_add),
+         ("version", cmd_version))
 
 
 def setup_parser():
@@ -388,6 +398,11 @@ def main(args=None):
     rc = 0
 
     try:
+
+        # don't bother pinging docker for a version command
+        if opts.func != cmd_version:
+            check_docker()
+
         opts.func(opts)
     except InsufficientPermissionsError as e:
         puts_err(colored.red("\nInsufficient permissions error:\n") + str(e) + "\n")

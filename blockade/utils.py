@@ -63,3 +63,17 @@ def docker_run(command,
     docker_client.remove_container(container=container.get('Id'), force=True)
 
     return output
+
+
+def check_docker():
+    client = docker.Client(
+        **docker.utils.kwargs_from_env(assert_hostname=False)
+    )
+    try:
+        client.ping()
+    except Exception as e:
+        raise BlockadeError(("Unable to connect to Docker: %s\n\n" +
+            "Blockade requires access to a Docker API.\nEnsure that Docker " +
+            "is running and your user has the correct privileges to access " +
+            "it.\nOr set the DOCKER_HOST env to point to an external Docker.")
+        % (str(e),))
