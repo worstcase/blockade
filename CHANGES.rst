@@ -1,6 +1,28 @@
 Changelog
 =========
 
+
+0.3.1 (2016-12-08)
+---------------
+- #43: Restore support for loading from `blockade.yml` config file.
+- #26: Improved error messages when running blockade without access
+  to the Docker API.
+- #25: Improved error messages when determining container host network
+  device fails.
+- #40: Fixed `kill` command (broken in 0.3.0).
+- #1: Fixed support for configuring Docker API via `DOCKER_HOST` env.
+- #36: Truncate long blockade IDs to avoid iptables limits.
+- Switched to directly inspecting `/sys` for container network devices
+  instead of via `ip`. This means containers no longer need to have `ip`
+  installed.
+- Improved Blockade Python API by returning names of the containers a
+  command has operated on. Contributed by Gregor Uhlenheuer (@kongo2002).
+- Fixed `Vagrantfile` to also work on Windows. Contributed by Oresztesz
+  Margaritisz (@gitaroktato).
+- Documentation fix contributed by Konrad Klocek (@kklocek).
+- Added new `version` command that prints Blockade version and exits.
+
+
 0.3.0 (2016-10-29)
 ------------------
 - Reworks all network commands to run in Docker containers. This allows

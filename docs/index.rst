@@ -18,6 +18,8 @@ Blockade features:
 - A flexible YAML format to describe the containers in your application
 - Support for dependencies between containers, using `named links`_
 - A CLI tool for managing and querying the status of your blockade
+- When run as a daemon, a simple :ref:`rest` can be used to configure your
+  blockade
 - Creation of arbitrary partitions between containers
 - Giving a container a flaky network connection to others (drop packets)
 - Giving a container a slow network connection to others (latency)
