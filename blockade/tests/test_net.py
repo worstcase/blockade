@@ -221,6 +221,22 @@ class NetTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_partition_index(blockade_id, "abc123-notanumber")
 
+    def test_partition_long_chain_parse(self):
+        blockade_id = "abc123awhopbopaloobopalopbamboom"
+        self.assertEqual(
+            "blockade-abc123awhopbopal-p1", partition_chain_name(blockade_id, 1)
+        )
+        self.assertEqual(
+            "blockade-abc123awhopbopal-p2", partition_chain_name(blockade_id, 2)
+        )
+
+        index = parse_partition_index(blockade_id,
+                                      partition_chain_name(blockade_id, 1))
+        self.assertEqual(1, index)
+
+        with self.assertRaises(ValueError):
+            parse_partition_index(blockade_id, "abc123")
+
     def test_partition_1(self):
         blockade_id = "e5dcf85cd2"
         expected_image=blockade.net.IPTABLES_DOCKER_IMAGE
