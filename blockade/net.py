@@ -22,6 +22,8 @@ import itertools
 import re
 
 BLOCKADE_CHAIN_PREFIX = "blockade-"
+# iptables chain names are a max of 29 characters so we truncate the prefix
+MAX_CHAIN_PREFIX_LENGTH = 25
 IPTABLES_DOCKER_IMAGE = "vimagick/iptables:latest"
 
 
@@ -96,7 +98,7 @@ class BlockadeNetwork(object):
 
 
 def parse_partition_index(blockade_id, chain):
-    prefix = "%s%s-p" % (BLOCKADE_CHAIN_PREFIX, blockade_id)
+    prefix = "%s-p" % partition_chain_prefix(blockade_id)
     if chain and chain.startswith(prefix):
         try:
             return int(chain[len(prefix):])
@@ -106,7 +108,12 @@ def parse_partition_index(blockade_id, chain):
 
 
 def partition_chain_name(blockade_id, partition_index):
-    return "%s%s-p%s" % (BLOCKADE_CHAIN_PREFIX, blockade_id, partition_index)
+    return "%s-p%s" % (partition_chain_prefix(blockade_id), partition_index)
+
+
+def partition_chain_prefix(blockade_id):
+    prefix = "%s%s" % (BLOCKADE_CHAIN_PREFIX, blockade_id)
+    return prefix[:MAX_CHAIN_PREFIX_LENGTH]
 
 
 def iptables_call_output(*args):
