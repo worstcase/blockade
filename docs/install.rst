@@ -43,4 +43,5 @@ Note that this may take a while, to download needed VMs and Docker containers.
 .. _Docker Engine: https://docs.docker.com/engine/installation/
 .. _environment variables: https://docs.docker.com/engine/reference/commandline/cli/#/environment-variables
 .. _Docker for Mac: https://docs.docker.com/docker-for-mac/
+.. _Docker for Windows: https://docs.docker.com/docker-for-windows/
 .. _Vagrant: http://www.vagrantup.com
