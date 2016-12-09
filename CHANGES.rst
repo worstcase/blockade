@@ -2,25 +2,27 @@ Changelog
 =========
 
 
-0.3.1 (2016-12-08)
+0.3.1 (2016-12-09)
 ---------------
-- #43: Restore support for loading from `blockade.yml` config file.
+- #43: Restore support for loading from ``blockade.yml`` config file.
 - #26: Improved error messages when running blockade without access
   to the Docker API.
 - #25: Improved error messages when determining container host network
   device fails.
-- #40: Fixed `kill` command (broken in 0.3.0).
-- #1: Fixed support for configuring Docker API via `DOCKER_HOST` env.
+- #40: Fixed ``kill`` command (broken in 0.3.0).
+- #1: Fixed support for configuring Docker API via ``DOCKER_HOST`` env.
 - #36: Truncate long blockade IDs to avoid iptables limits.
-- Switched to directly inspecting `/sys` for container network devices
-  instead of via `ip`. This means containers no longer need to have `ip`
+- Switched to directly inspecting ``/sys`` for container network devices
+  instead of via ``ip``. This means containers no longer need to have ``ip``
   installed.
 - Improved Blockade Python API by returning names of the containers a
   command has operated on. Contributed by Gregor Uhlenheuer (@kongo2002).
-- Fixed `Vagrantfile` to also work on Windows. Contributed by Oresztesz
+- Fixed ``Vagrantfile`` to also work on Windows. Contributed by Oresztesz
   Margaritisz (@gitaroktato).
 - Documentation fix contributed by Konrad Klocek (@kklocek).
-- Added new `version` command that prints Blockade version and exits.
+- Added new ``version`` command that prints Blockade version and exits.
+- Added ``cap_add`` container config option, for specifying additional
+  root capabilities. Contributed by Maciej Zimnoch (@Zimnx).
 
 
 0.3.0 (2016-10-29)
@@ -30,16 +32,16 @@ Changelog
   access Docker.
 - Introduces a REST API and daemon mode that allows creation and
   management of blockades remotely.
-- Adds ability to add a container to a running blockade, via `add`
+- Adds ability to add a container to a running blockade, via ``add``
   command.
 - Adds support for Docker user-defined networks to allow any-to-any
   communication between containers, without links. Contributed by
   Stas Kelvich (@kelvich).
 - Adds ability to configure DNS servers for containers in a blockade.
   Contributed by Vladimir Borodin (@dev1ant).
-- Adds a generic `--random` flag for many commands to allow easier
+- Adds a generic ``--random`` flag for many commands to allow easier
   randomized chaos testing. Contributed by Gregor Uhlenheuer (@kongo2002).
-- Introduces a new `kill` command for killing containers in a blockade.
+- Introduces a new ``kill`` command for killing containers in a blockade.
 - Fixed links to Docker documentation. Contributed by @joepadmiraal.
 - Fixed links of named containers. Contributed by Gregor Uhlenheuer
   (@kongo2002).
