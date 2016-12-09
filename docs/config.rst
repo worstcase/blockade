@@ -122,6 +122,10 @@ service is running before starting a container.
 ``count`` is optional and specifies the number of copies of the container to
 launch.
 
+``cap_add``
+---------
+``cap_add`` is optional and specifies additional root `capabilities`_
+
 ``container_name``
 ------------------
 
@@ -179,3 +183,4 @@ network environment variables with links will not bet set.
 .. _Docker volumes: https://docs.docker.com/engine/userguide/dockervolumes/
 .. _named links: https://docs.docker.com/engine/userguide/networking/default_network/dockerlinks/
 .. _tc netem: http://man7.org/linux/man-pages/man8/tc-netem.8.html
+.. _capabilities: http://man7.org/linux/man-pages/man7/capabilities.7.html

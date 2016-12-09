@@ -146,7 +146,8 @@ class Blockade(object):
             port_bindings=port_bindings,
             network_mode=network_mode,
             ulimits=[{'name': 'core', 'soft': 3145728, 'hard': 4194304}],
-            links=links)
+            links=links,
+            cap_add=container.cap_add)
 
         def create_container():
             # try to create container
