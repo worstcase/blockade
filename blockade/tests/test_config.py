@@ -219,6 +219,30 @@ class ConfigTests(unittest.TestCase):
         with self.assertRaisesRegexp(BlockadeConfigError, "start_delay"):
             BlockadeConfig.from_dict(d)
 
+    def test_parse_with_cap_add(self):
+        containers = {
+            "c1": {"image": "image1", "command": "/bin/bash",
+                   "cap_add": ["NET_ADMIN"]}
+        }
+        d = dict(containers=containers, network={})
+
+        config = BlockadeConfig.from_dict(d)
+        self.assertEqual(len(config.containers), 1)
+        c1 = config.containers['c1']
+        self.assertEqual(c1.cap_add, ["NET_ADMIN"])
+
+    def test_parse_with_multiple_cap_add(self):
+        containers = {
+            "c1": {"image": "image1", "command": "/bin/bash",
+                   "cap_add": ["NET_ADMIN", "MKNOD"]}
+        }
+        d = dict(containers=containers, network={})
+
+        config = BlockadeConfig.from_dict(d)
+        self.assertEqual(len(config.containers), 1)
+        c1 = config.containers['c1']
+        self.assertEqual(c1.cap_add, ["NET_ADMIN", "MKNOD"])
+
     def test_parse_with_count_1(self):
         containers = {
             "db": {"image": "image1", "command": "/bin/bash", "count": 2},
