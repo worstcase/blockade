@@ -14,17 +14,22 @@
 # limitations under the License.
 #
 
-from .errors import BlockadeError
-from .utils import docker_run
+import docker
 
 import collections
 import itertools
 import re
 
+from .errors import BlockadeError
+from .utils import docker_run
+
+
 BLOCKADE_CHAIN_PREFIX = "blockade-"
 # iptables chain names are a max of 29 characters so we truncate the prefix
 MAX_CHAIN_PREFIX_LENGTH = 25
 IPTABLES_DOCKER_IMAGE = "vimagick/iptables:latest"
+
+_ERROR_NET_IFACE = "Failed to find container network interface"
 
 
 class NetworkState(object):
@@ -68,33 +73,59 @@ class BlockadeNetwork(object):
         return iptables_get_source_chains(blockade_id)
 
     def get_container_device(self, docker_client, container_id):
-        exec_handle = docker_client.exec_create(container_id, ['cat', '/sys/class/net/eth0/ifindex'])
-        res = docker_client.exec_start(exec_handle).decode('utf-8')
-        device = res.strip()
-        if not device:
-            raise BlockadeError(
-                "Problem determining host network device for container '%s': got %s" %
-                (container_id, res))
+        container_idx = get_container_device_index(docker_client, container_id)
 
         # all my experiments showed the host device index was
         # one greater than its associated container device index
-        host_idx = int(device) + 1
-        host_res = docker_run(
-            'ip link',
-            image=IPTABLES_DOCKER_IMAGE,
-            docker_client=docker_client
-        )
+        host_idx = container_idx + 1
+
+        cmd = 'ip link'
+        try:
+            host_res = docker_run(cmd, image=IPTABLES_DOCKER_IMAGE,
+                                  docker_client=docker_client)
+        except Exception as e:
+            raise BlockadeError(
+                "%s:\nerror listing host network interfaces with: "
+                "'docker run --network=host %s %s':\n%s" %
+                (_ERROR_NET_IFACE, IPTABLES_DOCKER_IMAGE, cmd, str(e)))
 
         host_rgx = '^%d: ([^:@]+)[:@]' % host_idx
         host_match = re.search(host_rgx, host_res, re.M)
-        if not host_match:
-            raise BlockadeError(
-                "Problem determining host network device for container '%s': ip link shows: \n%s" %
-                (container_id, host_res))
+        if host_match:
+            return host_match.group(1)
 
-        host_device = host_match.group(1)
+        raise BlockadeError(
+            "%s:\ncould not find expected host link %s for container %s."
+            "'ip link' output:\n %s\n\nThis may be a Blockade bug, or "
+            "there may be something unusual about your container network."
+            % (_ERROR_NET_IFACE, host_idx, container_id, host_res))
 
-        return host_device
+
+def get_container_device_index(docker_client, container_id):
+    cmd_args = ['cat', '/sys/class/net/eth0/ifindex']
+    res = None
+    try:
+        exec_handle = docker_client.exec_create(container_id, cmd_args)
+        res = docker_client.exec_start(exec_handle).decode('utf-8').strip()
+    except Exception as e:
+        if (isinstance(e, docker.errors.APIError) or
+                isinstance(e, docker.errors.DockerException)):
+            error_type = "Docker"
+        else:
+            error_type = "Unknown"
+        raise BlockadeError(
+            "%s:\n%s error attempting to exec '%s' in container %s:\n%s"
+            % (_ERROR_NET_IFACE, error_type, ' '.join(cmd_args),
+                container_id, str(e)))
+
+    try:
+        return int(res)
+    except (ValueError, TypeError):
+        raise BlockadeError(
+            "%s:\nexec '%s' in container %s returned:\n%s\n\n"
+            "Ensure the container is alive and supports this exec command."
+            % (_ERROR_NET_IFACE, ' '.join(cmd_args),
+                container_id, res))
 
 
 def parse_partition_index(blockade_id, chain):
