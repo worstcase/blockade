@@ -19,6 +19,7 @@ from __future__ import print_function
 import docker
 import errno
 import random
+import six
 import sys
 import time
 
@@ -209,11 +210,14 @@ class Blockade(object):
         network = container.get('NetworkSettings')
         ip = None
         if network:
+            ip = network.get('IPAddress')
+            networks = network.get('Networks')
             if self.config.is_udn():
-                ip = network.get('Networks').get(
+                ip = networks.get(
                         self.state.blockade_net_name).get('IPAddress')
-            else:
-                ip = network.get('IPAddress')
+            elif networks and not ip:
+                if len(networks) == 1:
+                    ip = six.next(six.itervalues(networks)).get('IPAddress')
 
             if ip:
                 extras['ip_address'] = ip

@@ -102,3 +102,24 @@ class BlockadeCoreTests(unittest.TestCase):
 
         self.assertEqual(self.state.update.call_count, 1)
         self.assertEqual(len(self.state.containers), 3)
+
+    # get_container_description should use the IP address from the network
+    # if there is only one network and the top-level IP address is empty
+    def test_get_container_description_ip_address_info(self):
+        expected_ip = "1.2.3.4"
+        self.docker_client.inspect_container.side_effect = lambda id: {
+            "Id": id,
+            "IPAddress": "",
+            "NetworkSettings": {
+                "Networks": {"TheOnlyNetwork": {"IPAddress": expected_ip}}
+            }
+        }
+
+        b = Blockade(BlockadeConfig(),
+                     state=self.state,
+                     network=self.network,
+                     docker_client=self.docker_client)
+
+        container = b._get_container_description("c1")
+
+        self.assertEqual(expected_ip, container.ip_address)
