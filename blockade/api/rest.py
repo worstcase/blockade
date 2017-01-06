@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import signal
+import sys
+import traceback
 
 from flask import Flask, abort, jsonify, request
 from gevent.wsgi import WSGIServer
@@ -22,13 +25,25 @@ from blockade.config import BlockadeConfig
 from blockade.errors import DockerContainerNotFound
 from blockade.errors import InvalidBlockadeName
 
-import json
-import os
 
 app = Flask(__name__)
 
+def stack_trace_handler(signum, frame):
+    code = []
+    code.append(" === Stack trace Begin === ")
+    for threadId, stack in list(sys._current_frames().items()):
+        code.append("##### Thread %s #####" % threadId);
+        for filename, lineno, name, line in traceback.extract_stack(stack):
+            code.append('\tFile: "%s", line %d, in %s' % (filename, lineno, name));
+        if line:
+            code.append(line)
+    code.append(" === Stack trace End === ")
+    app.logger.warn("\n".join(code))
+
 
 def start(data_dir='/tmp', port=5000, debug=False):
+    signal.signal(signal.SIGUSR2, stack_trace_handler)
+
     BlockadeManager.set_data_dir(data_dir)
     app.debug = debug
     http_server = WSGIServer(('', port), app)
