@@ -22,6 +22,7 @@ from gevent.wsgi import WSGIServer
 
 from blockade.api.manager import BlockadeManager
 from blockade.config import BlockadeConfig
+from blockade.errors import BlockadeNotFound
 from blockade.errors import DockerContainerNotFound
 from blockade.errors import InvalidBlockadeName
 
@@ -59,8 +60,9 @@ def unsupported_media_type(error):
 
 
 @app.errorhandler(404)
-def blockade_name_not_found(error):
-    return 'Blockade name not found', 404
+@app.errorhandler(BlockadeNotFound)
+def blockade_not_found(error):
+    return 'Blockade not found', 404
 
 
 @app.errorhandler(InvalidBlockadeName)
@@ -93,7 +95,7 @@ def create(name):
     # This will abort with a 400 if the JSON is bad
     data = request.get_json()
     config = BlockadeConfig.from_dict(data)
-    BlockadeManager.store_config(name, config)
+    BlockadeManager.store_config(name, data)
 
     b = BlockadeManager.get_blockade(name)
     containers = b.create()
