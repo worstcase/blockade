@@ -25,6 +25,11 @@ class BlockadeConfigError(BlockadeError):
     """
 
 
+class BlockadeUsageError(BlockadeError):
+    """Error in configuration
+    """
+
+
 class BlockadeContainerConflictError(BlockadeError):
     """Error on conflicting containers
     """
@@ -54,6 +59,29 @@ class InvalidBlockadeName(BlockadeError):
     """Invalid blockade name
     """
 
+
 class DockerContainerNotFound(BlockadeError):
     """Docker container not found
     """
+
+
+class BlockadeStateTransitionError(BlockadeError):
+    """The state machine was given an invalid event.  Based on the state that
+     it is in and the event received the state machine could not process the
+     event"""
+    def __init__(self, current_state, event, msg=None):
+        super(BlockadeStateTransitionError, self).__init__(msg)
+        self.state = current_state
+        self.event = event
+
+    def __str__(self):
+        return
+
+
+class BlockadeHttpError(BlockadeError):
+    """Errors from the REST API
+    """
+    def __init__(self, http_code, http_msg, msg=None):
+        super(BlockadeStateTransitionError, self).__init__(msg)
+        self.http_code = http_code
+        self.http_msg = http_msg

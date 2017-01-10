@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import time
 from flask.ext.testing import LiveServerTestCase
 
 from blockade.api.rest import app
@@ -131,7 +131,8 @@ class RestIntegrationTests(LiveServerTestCase):
 
     def _assert_container_status(self, container_name, container_status):
         result_data = self._get_blockade()
-        status = result_data.get('containers').get(container_name).get('status')
+        status =\
+            result_data.get('containers').get(container_name).get('status')
         assert status.upper() == container_status.upper()
 
     @unittest.skipIf(*INT_SKIP)
@@ -178,3 +179,60 @@ class RestIntegrationTests(LiveServerTestCase):
         result = requests.post(url, headers=self.headers, data=data)
         assert result.status_code == 204
         self._assert_container_network_state('c1', 'SLOW')
+
+    def _test_basic_events(self, event):
+        data = '''
+            {
+                "event_set": ["%s"],
+                "min_start_delay": 1,
+                "max_start_delay": 2,
+                "min_run_time": 30000,
+                "min_run_time": 300000,
+                "min_containers_at_once": 2,
+                "max_containers_at_once": 2
+            }
+        ''' % event
+        url = self.url + '/chaos'
+        result = requests.post(url, headers=self.headers, data=data)
+        assert result.status_code == 201
+        time.sleep(10.0)
+
+    @unittest.skipIf(*INT_SKIP)
+    def test_chaos_slow(self):
+        self._test_basic_events("SLOW")
+        self._assert_container_network_state('c1', 'SLOW')
+
+    @unittest.skipIf(*INT_SKIP)
+    def test_chaos_flaky(self):
+        self._test_basic_events("FLAKY")
+        self._assert_container_network_state('c1', 'FLAKY')
+
+    @unittest.skipIf(*INT_SKIP)
+    def test_chaos_duplicate(self):
+        self._test_basic_events("DUPLICATE")
+        self._assert_container_network_state('c1', 'DUPLICATE')
+
+    @unittest.skipIf(*INT_SKIP)
+    def test_chaos_start_status_update_stop(self):
+        data = '''
+            {
+                "event_set": ["SLOW"],
+                "min_start_delay": 1,
+                "max_start_delay": 2,
+                "min_run_time": 30000,
+                "min_run_time": 300000,
+                "min_containers_at_once": 2,
+                "max_containers_at_once": 2
+            }
+        '''
+        url = self.url + '/chaos'
+        result = requests.post(url, headers=self.headers, data=data)
+        assert result.status_code == 201
+        result = requests.get(url)
+        assert result.status_code == 200
+        result = requests.put(url, headers=self.headers, data=data)
+        assert result.status_code == 200
+        result = requests.delete(url)
+        assert result.status_code == 200
+        result = requests.get(url)
+        assert result.status_code == 500

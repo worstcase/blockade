@@ -20,6 +20,8 @@ import traceback
 from flask import Flask, abort, jsonify, request
 from gevent.wsgi import WSGIServer
 
+from blockade import chaos
+from blockade import errors
 from blockade.api.manager import BlockadeManager
 from blockade.config import BlockadeConfig
 from blockade.errors import DockerContainerNotFound
@@ -28,13 +30,15 @@ from blockade.errors import InvalidBlockadeName
 
 app = Flask(__name__)
 
+
 def stack_trace_handler(signum, frame):
     code = []
     code.append(" === Stack trace Begin === ")
     for threadId, stack in list(sys._current_frames().items()):
-        code.append("##### Thread %s #####" % threadId);
+        code.append("##### Thread %s #####" % threadId)
         for filename, lineno, name, line in traceback.extract_stack(stack):
-            code.append('\tFile: "%s", line %d, in %s' % (filename, lineno, name));
+            code.append('\tFile: "%s", line %d, in %s' %
+                        (filename, lineno, name))
         if line:
             code.append(line)
     code.append(" === Stack trace End === ")
@@ -168,7 +172,6 @@ def partitions(name):
     for partition in partitions:
         if not isinstance(partition, list):
             return "'partitions' must be a list of lists", 400
-
     b.partition(partitions)
 
     return '', 204
@@ -214,7 +217,7 @@ def network_state(name):
 @app.route("/blockade/<name>")
 def status(name):
     if not BlockadeManager.blockade_exists(name):
-        abort(404)
+        abort(404, "The blockade %s does not exist" % name)
 
     containers = {}
     b = BlockadeManager.get_blockade(name)
@@ -229,9 +232,86 @@ def destroy(name):
     if not BlockadeManager.blockade_exists(name):
         abort(404)
 
+    if _chaos.exists(name):
+        try:
+            _chaos.delete(name)
+        except errors.BlockadeUsageError as bue:
+            app.logger.error(bue)
+
     b = BlockadeManager.get_blockade(name)
     b.destroy()
 
     BlockadeManager.delete_config(name)
 
     return '', 204
+
+
+_chaos = chaos.Chaos()
+
+
+def _validate_chaos_input(option):
+    valid_inputs = [
+        "min_start_delay", "max_start_delay",
+        "min_run_time", "max_run_time",
+        "min_containers_at_once", "max_containers_at_once",
+        "min_events_at_once", "max_events_at_once",
+        "event_set"
+    ]
+    for o in option:
+        if o not in valid_inputs:
+            raise errors.BlockadeHttpError(400, "%s is not a valid input")
+
+
+@app.route("/blockade/<name>/chaos", methods=['POST'])
+def chaos_new(name):
+    if not BlockadeManager.blockade_exists(name):
+        abort(404, "The blockade %s does not exist" % name)
+    if not request.headers['Content-Type'] == 'application/json':
+        abort(415, "The body is not in JSON format")
+    options = request.get_json()
+    _validate_chaos_input(options)
+    try:
+        _chaos.new_chaos(name, **options)
+        return "Successfully started chaos on %s" % name, 201
+    except errors.BlockadeUsageError as bue:
+        app.logger.error(bue.message)
+        return bue.http_msg, bue.http_code
+
+
+@app.route("/blockade/<name>/chaos", methods=['PUT'])
+def chaos_update(name):
+    if not BlockadeManager.blockade_exists(name):
+        abort(404, "The blockade %s does not exist" % name)
+    options = request.get_json()
+    _validate_chaos_input(options)
+    try:
+        _chaos.update_options(name, **options)
+        return "Updated chaos on %s" % name, 200
+    except errors.BlockadeUsageError as bue:
+        app.logger.error(bue.message)
+        return bue.http_msg, bue.http_code
+
+
+@app.route("/blockade/<name>/chaos", methods=['DELETE'])
+def chaos_destroy(name):
+    if not BlockadeManager.blockade_exists(name):
+        abort(404, "The blockade %s does not exist" % name)
+    try:
+        _chaos.stop(name)
+        _chaos.delete(name)
+        return "Deleted chaos on %s" % name, 200
+    except errors.BlockadeUsageError as bue:
+        app.logger.error(bue.message)
+        return bue.message, 500
+
+
+@app.route("/blockade/<name>/chaos", methods=['GET'])
+def chaos_status(name):
+    if not BlockadeManager.blockade_exists(name):
+        abort(404, "The blockade %s does not exist" % name)
+    try:
+        status = _chaos.status(name)
+        return jsonify(status=status)
+    except errors.BlockadeUsageError as bue:
+        app.logger.error(bue.message)
+        return bue.message, 500

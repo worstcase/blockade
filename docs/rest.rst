@@ -208,3 +208,112 @@ Check the help for Blockade daemon options ``blockade daemon -h``
 ::
 
     204 No content
+
+
+Chaos REST API
+==============
+
+Users wishing to start *chaos* on their blockade can use this REST API.  Based
+on the parameters given the *chaos* feature will randomly select containers
+in the blockade to perform blockade events (duplicate, slow, flaky, or
+partition) upon.
+
+``Start chaos on a Blockade``
+-----------------------------
+
+Began performing chaos operations on a given blockade.  The user can control
+the number of events that can happen at once as well as the number of
+containers that can be effected in a given degradation period.  What possible
+events can be selected can be controlled as well.  A *degradation* period
+will start sometime between *min_start_delay* and *max_start_delay*
+milliseconds and it will last for between *min_run_time* and *max_run_time*
+milliseconds.
+
+**Example request:**
+
+::
+
+    POST /blockade/<name>/chaos
+    Content-Type: application/json
+
+    {
+        "min_start_delay": 30000,
+        "max_start_delay": 300000,
+        "min_run_time": 30000,
+        "max_run_time": 300000,
+        "min_containers_at_once": 1,
+        "max_containers_at_once": 2,
+        "min_events_at_once": 1,
+        "max_events_at_once": 2,
+        "event_set": ["SLOW", "DUPLICATE", "FLAKY", "STOP", "PARTITION"]
+    }
+
+
+**Response:**
+
+::
+
+    201 Successfully started chaos on <name>
+
+``Update chaos parameters on a Blockade``
+-----------------------------------------
+
+This operation takes the same options as the create.
+
+**Example request:**
+
+::
+
+    POST /blockade/<name>/chaos
+    Content-Type: application/json
+
+    {
+        "min_start_delay": 30000,
+        "max_start_delay": 300000,
+        "min_run_time": 30000,
+        "max_run_time": 300000,
+        "min_containers_at_once": 1,
+        "max_containers_at_once": 2,
+        "min_events_at_once": 1,
+        "max_events_at_once": 2,
+        "event_set": ["SLOW", "DUPLICATE", "FLAKY", "STOP", "PARTITION"]
+    }
+
+**Response:**
+
+::
+
+    200 Updated chaos on <name>
+
+``Get the current status of chaos``
+-----------------------------------
+
+**Example request:**
+
+::
+
+    GET /blockade/<name>/chaos
+
+**Response:**
+
+::
+
+    {
+        "state": "DEGRADED"
+    }
+
+``Stop chaos on a give blockade``
+---------------------------------
+
+**Example request:**
+
+::
+
+    DELETE /blockade/<name>/chaos
+
+**Response:**
+
+::
+
+    Deleted chaos on <name>
+
