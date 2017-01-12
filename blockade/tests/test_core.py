@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import os
 
 import mock
 
@@ -31,6 +32,7 @@ class BlockadeCoreTests(unittest.TestCase):
         self.network = mock.Mock()
         self.docker_client = mock.Mock()
         self.state = mock.MagicMock()
+        self.state.get_audit_file.return_value = os.devnull
 
     def test_create(self):
         containers = {'c1': BlockadeContainerConfig("c1", "image"),
