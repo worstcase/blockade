@@ -213,6 +213,12 @@ class RestIntegrationTests(LiveServerTestCase):
         self._assert_container_network_state('c1', 'DUPLICATE')
 
     @unittest.skipIf(*INT_SKIP)
+    def test_chaos_partition(self):
+        self._test_basic_events("PARTITION")
+        time.sleep(10.0)
+        self._assert_partition()
+
+    @unittest.skipIf(*INT_SKIP)
     def test_chaos_start_status_update_stop(self):
         data = '''
             {

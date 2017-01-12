@@ -19,16 +19,16 @@ import threading
 
 from blockade import errors
 from blockade import state_machine
-from blockade.api.manager import BlockadeManager
 
 
 _logger = logging.getLogger(__file__)
 
 
 def _flaky(blockade, targets, all_containers):
-    _logger.debug(
-        "Chaos making the network drop packets for %s" % str(targets))
-    blockade.flaky([t.name for t in targets])
+    target_names = [t.name for t in targets]
+    _logger.info(
+        "Chaos making the network drop packets for %s" % str(target_names))
+    blockade.flaky(target_names)
 
 
 def _partition(blockade, targets, all_containers):
@@ -37,28 +37,35 @@ def _partition(blockade, targets, all_containers):
     # a user may only want to lock off at most 1 container at a time until
     # their application becomes more stable.  A separate event should be added
     # that creates random sets of partitions.
-    remaining = all_containers[:]
+    remaining_names = [t.name for t in all_containers]
+
     parts = []
     for t in targets:
-        remaining.remove(t)
-        parts.append([t])
-    parts.append(remaining)
+        remaining_names.remove(t.name)
+        parts.append([t.name])
+    parts.append(remaining_names)
+    target_names = [t.name for t in targets]
+    _logger.info("Putting %s in their own partitions and %s in another: %s"
+                 % (str(target_names), str(remaining_names), str(parts)))
     blockade.partition(parts)
 
 
 def _slow(blockade, targets, all_containers):
-    _logger.debug("Chaos making the network slow for %s" % str(targets))
-    blockade.slow([t.name for t in targets])
+    target_names = [t.name for t in targets]
+    _logger.info("Chaos making the network slow for %s" % str(target_names))
+    blockade.slow(target_names)
 
 
 def _duplicate(blockade, targets, all_containers):
-    _logger.debug("Chaos adding duplicate packets for %s" % str(targets))
-    blockade.duplicate([t.name for t in targets])
+    target_names = [t.name for t in targets]
+    _logger.info("Chaos adding duplicate packets for %s" % str(target_names))
+    blockade.duplicate(target_names)
 
 
 def _stop(blockade, targets, all_containers):
-    _logger.debug("Chaos stoping %s" % str(targets))
-    blockade.stop([t.name for t in targets])
+    target_names = [t.name for t in targets]
+    _logger.info("Chaos stopping %s" % str(target_names))
+    blockade.stop(target_names)
 
 
 _g_blockade_event_handlers = {
@@ -92,13 +99,23 @@ class ChaosEvents(object):
 
 
 # This class represents any one blockades
-class _BlockadeChaos(object):
-    def __init__(self, blockade_name,
+class BlockadeChaos(object):
+    def __init__(self, blockade, blockade_name,
                  min_start_delay, max_start_delay,
                  min_run_time, max_run_time,
                  min_containers_at_once, max_containers_at_once,
                  min_events_at_once, max_events_at_once,
-                 event_set):
+                 event_set,
+                 done_notification_func=None):
+        valid_events = get_all_event_names()
+        if event_set is None:
+            event_set = valid_events
+        else:
+            for e in event_set:
+                if e not in valid_events:
+                    raise errors.BlockadeUsageError(
+                            "%s is an unknown event." % e)
+        self._blockade = blockade
         self._blockade_name = blockade_name
         self._start_min_delay = min_start_delay
         self._start_max_delay = max_start_delay
@@ -109,6 +126,7 @@ class _BlockadeChaos(object):
         self._min_events_at_once = min_events_at_once
         self._max_events_at_once = max_events_at_once
         self._chaos_events = event_set[:]
+        self._done_notification_func = done_notification_func
         self._timer = None
         self._mutex = threading.Lock()
         self._create_state_machine()
@@ -148,18 +166,15 @@ class _BlockadeChaos(object):
             self._mutex.release()
 
     def _do_reset_all(self):
-        blockade = BlockadeManager.get_blockade(self._blockade_name)
-        container_list = blockade.status()
+        container_list = self._blockade.status()
         container_names = [t.name for t in container_list]
         # greedily set everything to a happy state
-        blockade.start(container_names)
-        blockade.fast(container_names)
-        blockade.join()
+        self._blockade.start(container_names)
+        self._blockade.fast(container_names)
+        self._blockade.join()
 
     def _do_blockade_event(self):
-        blockade = BlockadeManager.get_blockade(self._blockade_name)
-
-        container_list = blockade.status()
+        container_list = self._blockade.status()
         random.shuffle(container_list)
         count = random.randint(self._min_containers_at_once,
                                self._max_containers_at_once)
@@ -171,7 +186,7 @@ class _BlockadeChaos(object):
         for e in events:
             try:
                 _g_blockade_event_handlers[e](
-                        blockade, targets, container_list)
+                        self._blockade, targets, container_list)
             except KeyError:
                 raise errors.BlockadeUsageError("Invalid event %s" % e)
 
@@ -238,6 +253,11 @@ class _BlockadeChaos(object):
                 ChaosStates.FAILED_WHILE_HEALTHY, ChaosEvents.DELETE,
                 ChaosStates.DONE,
                 self._sm_cleanup, ChaosStates.FAILED_WHILE_HEALTHY)
+
+        self._sm.add_transition(
+                ChaosStates.DONE, ChaosEvents.TIMER,
+                ChaosStates.DONE,
+                self._sm_stale_timer, ChaosStates.DONE)
 
     def status(self):
         self._mutex.acquire()
@@ -307,7 +327,7 @@ class _BlockadeChaos(object):
         End the blockade event and return to a steady state
         """
         _logger.info(
-                "Ending the degration for blockade %s" % self._blockade_name)
+                "Ending the degradation for blockade %s" % self._blockade_name)
         self._do_reset_all()
         # set a timer for the next pain event
         millisec = random.randint(self._start_min_delay, self._start_max_delay)
@@ -325,6 +345,8 @@ class _BlockadeChaos(object):
         """
         Delete all state associated with the chaos session
         """
+        if self._done_notification_func is not None:
+            self._done_notification_func()
         self._timer.cancel()
 
     def _sm_stale_timer(self, *args, **kwargs):
@@ -337,15 +359,17 @@ class _BlockadeChaos(object):
     def _sm_panic_handler_stop_timer(self):
         try:
             self._timer.cancel()
+            if self._done_notification_func is not None:
+                self._done_notification_func()
         except BaseException as base_ex:
-            _logger.warning("Failed to stop the timer %s" % base_ex.message)
+            _logger.warning("Failed to stop the timer %s" % str(base_ex))
 
 
 class Chaos(object):
     def __init__(self):
         self._active_chaos = {}
 
-    def new_chaos(self, name,
+    def new_chaos(self, blockade, name,
                   min_start_delay=30000, max_start_delay=300000,
                   min_run_time=30000, max_run_time=300000,
                   min_containers_at_once=1, max_containers_at_once=1,
@@ -356,7 +380,8 @@ class Chaos(object):
                     "Chaos is already associated with %s" % name)
         if event_set is None:
             event_set = get_all_event_names()
-        bc = _BlockadeChaos(
+        bc = BlockadeChaos(
+                blockade,
                 name,
                 min_start_delay=min_start_delay,
                 max_start_delay=max_start_delay,
@@ -377,23 +402,17 @@ class Chaos(object):
                        max_containers_at_once=None,
                        min_events_at_once=None, max_events_at_once=None,
                        event_set=None):
-        try:
-            if event_set is None:
-                event_set = get_all_event_names()
-            chaos_b = self._active_chaos[name]
-            chaos_b.change_events(
-                    min_start_delay=min_start_delay,
-                    max_start_delay=max_start_delay,
-                    min_run_time=min_run_time,
-                    max_run_time=max_run_time,
-                    min_containers_at_once=min_containers_at_once,
-                    max_containers_at_once=max_containers_at_once,
-                    min_events_at_once=min_events_at_once,
-                    max_events_at_once=max_events_at_once,
-                    event_set=event_set)
-        except KeyError:
-            raise errors.BlockadeUsageError(
-                    "Chaos is not associated with %s" % name)
+        chaos_b = self._get_chaos_obj(name)
+        chaos_b.change_events(
+                min_start_delay=min_start_delay,
+                max_start_delay=max_start_delay,
+                min_run_time=min_run_time,
+                max_run_time=max_run_time,
+                min_containers_at_once=min_containers_at_once,
+                max_containers_at_once=max_containers_at_once,
+                min_events_at_once=min_events_at_once,
+                max_events_at_once=max_events_at_once,
+                event_set=event_set)
 
     def _get_chaos_obj(self, name):
         try:
@@ -439,6 +458,6 @@ class Chaos(object):
             chaos_b = self._get_chaos_obj(c)
             try:
                 chaos_b.stop()
-            except:
-                pass
+            except BaseException as bex:
+                _logger.warn(str(bex))
             chaos_b.delete()

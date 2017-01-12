@@ -75,7 +75,8 @@ class BlockadeStateTransitionError(BlockadeError):
         self.event = event
 
     def __str__(self):
-        return
+        return "Error processing the event %s when in the %s state" % (
+            self.event, self.state)
 
 
 class BlockadeHttpError(BlockadeError):

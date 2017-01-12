@@ -271,10 +271,10 @@ def chaos_new(name):
     options = request.get_json()
     _validate_chaos_input(options)
     try:
-        _chaos.new_chaos(name, **options)
+        _chaos.new_chaos(BlockadeManager.get_blockade(name), name, **options)
         return "Successfully started chaos on %s" % name, 201
     except errors.BlockadeUsageError as bue:
-        app.logger.error(bue.message)
+        app.logger.error(str(bue))
         return bue.http_msg, bue.http_code
 
 
@@ -288,7 +288,7 @@ def chaos_update(name):
         _chaos.update_options(name, **options)
         return "Updated chaos on %s" % name, 200
     except errors.BlockadeUsageError as bue:
-        app.logger.error(bue.message)
+        app.logger.error(str(bue))
         return bue.http_msg, bue.http_code
 
 
@@ -301,8 +301,8 @@ def chaos_destroy(name):
         _chaos.delete(name)
         return "Deleted chaos on %s" % name, 200
     except errors.BlockadeUsageError as bue:
-        app.logger.error(bue.message)
-        return bue.message, 500
+        app.logger.error(str(bue))
+        return str(bue), 500
 
 
 @app.route("/blockade/<name>/chaos", methods=['GET'])
@@ -313,5 +313,5 @@ def chaos_status(name):
         status = _chaos.status(name)
         return jsonify(status=status)
     except errors.BlockadeUsageError as bue:
-        app.logger.error(bue.message)
-        return bue.message, 500
+        app.logger.error(str(bue))
+        return str(bue), 500

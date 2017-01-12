@@ -15,12 +15,16 @@
 #
 import time
 import unittest
+from collections import namedtuple
 
 from mock import patch, MagicMock
 
 from blockade import errors
 from blockade import chaos
 from blockade.api.manager import BlockadeManager
+
+
+FakeContainers = namedtuple('FakeContainers', 'name')
 
 
 class ChaosTest(unittest.TestCase):
@@ -37,49 +41,42 @@ class ChaosTest(unittest.TestCase):
     def test_basic_start_stop_destroy(self):
         name = "aname"
         block_mock = MagicMock()
-        with patch.object(BlockadeManager, 'get_blockade',
-                          return_value=block_mock):
-            self.chaos.new_chaos(name)
-            status = self.chaos.status(name)
-            self.assertIn(status['state'], ['HEALTHY', 'DEGRADED'])
-            self.chaos.stop(name)
-            status = self.chaos.status(name)
-            self.assertEqual(status['state'], 'STOPPED')
-            self.chaos.delete(name)
+        self.chaos.new_chaos(block_mock, name)
+        status = self.chaos.status(name)
+        self.assertIn(status['state'], ['HEALTHY', 'DEGRADED'])
+        self.chaos.stop(name)
+        status = self.chaos.status(name)
+        self.assertEqual(status['state'], 'STOPPED')
+        self.chaos.delete(name)
 
     def test_start_chaos_twice(self):
         name = "aname"
         block_mock = MagicMock()
-        with patch.object(
-                BlockadeManager, 'get_blockade', return_value=block_mock):
-            self.chaos.new_chaos(name)
-            with self.assertRaises(errors.BlockadeUsageError):
-                self.chaos.new_chaos(name)
+        self.chaos.new_chaos(block_mock, name)
+        with self.assertRaises(errors.BlockadeUsageError):
+            self.chaos.new_chaos(block_mock, name)
 
     def test_delete_running_chaos(self):
         name = "aname"
         block_mock = MagicMock()
-        with patch.object(
-                BlockadeManager, 'get_blockade', return_value=block_mock):
-            self.chaos.new_chaos(name)
-            with self.assertRaises(errors.BlockadeUsageError):
-                self.chaos.delete(name)
+        self.chaos.new_chaos(block_mock, name)
+        with self.assertRaises(errors.BlockadeUsageError):
+            self.chaos.delete(name)
 
     def _specific_event_called(self, func_name, event_name):
         name = "aname"
         block_mock = MagicMock()
-        with patch.object(BlockadeManager, 'get_blockade',
-                          return_value=block_mock) as mock_method:
-            self.chaos.new_chaos(
-                    name,
-                    min_start_delay=1,
-                    max_start_delay=1,
-                    min_run_time=100,
-                    max_run_time=100,
-                    event_set=[event_name])
-            time.sleep(0.3)
-            self.chaos.stop(name)
-        mock_method.assert_called_with(name)
+        block_mock.status.return_value = [FakeContainers('c1'),
+                                          FakeContainers('c2')]
+        self.chaos.new_chaos(
+                block_mock, name,
+                min_start_delay=1,
+                max_start_delay=1,
+                min_run_time=100,
+                max_run_time=100,
+                event_set=[event_name])
+        time.sleep(0.3)
+        self.chaos.stop(name)
         f = getattr(block_mock, func_name)
         f.assert_called()
         block_mock.fast.assert_called()
@@ -98,3 +95,27 @@ class ChaosTest(unittest.TestCase):
 
     def test_timers_and_stop_fired(self):
         self._specific_event_called('stop', 'STOP')
+
+    def test_update_event_called(self):
+        name = "aname"
+        block_mock = MagicMock()
+        block_mock.status.return_value = [FakeContainers('c1'),
+                                          FakeContainers('c2')]
+        self.chaos.new_chaos(
+                block_mock, name,
+                min_start_delay=1000000,
+                max_start_delay=1000000,
+                min_run_time=1000000,
+                max_run_time=1000000,
+                event_set=["SLOW"])
+        self.chaos.stop(name)
+        self.chaos.update_options(
+                name,
+                min_start_delay=1,
+                max_start_delay=1,
+                min_run_time=100,
+                max_run_time=100)
+        self.chaos.start(name)
+        time.sleep(0.3)
+        f = getattr(block_mock, "slow")
+        f.assert_called()

@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import logging
+import traceback
 from collections import namedtuple
 import os
 import threading
@@ -57,7 +58,7 @@ class StateMachine(object):
         self._mutex.acquire()
         try:
             _logger.debug(
-                "Calling state transition function %s(func_name)s" %
+                "Calling state transition function %(func_name)s" %
                 {"func_name": state_trans.func.__name__})
             if state_trans.func is not None:
                 try:
@@ -65,20 +66,18 @@ class StateMachine(object):
                     self._state = state_trans.state
                     return rc
                 except BaseException as base_ex:
-                    _logger.error(
-                        "Received an exception, going directly to state %s" %
+                    _logger.exception(
+                        "Received an exception, going directly to state %s " %
                         state_trans.error_state)
-                    _logger.error(base_ex)
                     if state_trans.error_func is not None:
                         try:
                             state_trans.error_func()
                         except BaseException as error_ex:
                             # there is nothing we can do here.  This is an
                             # exception coming from the users panic function
-                            _logger.error(
+                            _logger.exception(
                                 "Received an exception from the panic "
                                 "handler %s" % state_trans.error_func.__name__)
-                            _logger.error(error_ex)
                     self._state = state_trans.error_state
             else:
                 self._state = state_trans.state
