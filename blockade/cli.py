@@ -252,8 +252,6 @@ def cmd_chaos(opts):
                       max_run_time=opts.degrade_runtime_max,
                       min_containers_at_once=opts.containers_at_once_min,
                       max_containers_at_once=opts.containers_at_once_max,
-                      min_events_at_once=opts.events_at_once_min,
-                      max_events_at_once=opts.events_at_once_max,
                       event_set=event_set,
                       done_notification_func=chaos_ended)
     try:
@@ -466,14 +464,6 @@ def setup_parser():
             "--containers-at-once-max",
             help="The maximum number of containers to effect at once.",
             type=int, default=1)
-    command_parsers["chaos"].add_argument(
-            "--events-at-once-min",
-            help="The minimum number of events to run at once.", type=int,
-            default=1)
-    command_parsers["chaos"].add_argument(
-            "--events-at-once-max",
-            help="The maximum number of events to run at once.", type=int,
-            default=1)
 
     return parser
 

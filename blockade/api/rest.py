@@ -254,7 +254,6 @@ def _validate_chaos_input(option):
         "min_start_delay", "max_start_delay",
         "min_run_time", "max_run_time",
         "min_containers_at_once", "max_containers_at_once",
-        "min_events_at_once", "max_events_at_once",
         "event_set"
     ]
     for o in option:

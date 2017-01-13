@@ -37,16 +37,12 @@ def _partition(blockade, targets, all_containers):
     # a user may only want to lock off at most 1 container at a time until
     # their application becomes more stable.  A separate event should be added
     # that creates random sets of partitions.
-    remaining_names = [t.name for t in all_containers]
-
     parts = []
     for t in targets:
-        remaining_names.remove(t.name)
         parts.append([t.name])
-    parts.append(remaining_names)
     target_names = [t.name for t in targets]
-    _logger.info("Putting %s in their own partitions and %s in another: %s"
-                 % (str(target_names), str(remaining_names), str(parts)))
+    _logger.info("Putting %s in their own partitions: %s"
+                 % (str(target_names), str(parts)))
     blockade.partition(parts)
 
 
@@ -104,7 +100,6 @@ class BlockadeChaos(object):
                  min_start_delay, max_start_delay,
                  min_run_time, max_run_time,
                  min_containers_at_once, max_containers_at_once,
-                 min_events_at_once, max_events_at_once,
                  event_set,
                  done_notification_func=None):
         valid_events = get_all_event_names()
@@ -123,8 +118,6 @@ class BlockadeChaos(object):
         self._run_max_time = max_run_time
         self._min_containers_at_once = min_containers_at_once
         self._max_containers_at_once = max_containers_at_once
-        self._min_events_at_once = min_events_at_once
-        self._max_events_at_once = max_events_at_once
         self._chaos_events = event_set[:]
         self._done_notification_func = done_notification_func
         self._timer = None
@@ -139,8 +132,8 @@ class BlockadeChaos(object):
     def change_events(self,
                       min_start_delay=None, max_start_delay=None,
                       min_run_time=None, max_run_time=None,
-                      min_containers_at_once=None, max_containers_at_once=None,
-                      min_events_at_once=None, max_events_at_once=None,
+                      min_containers_at_once=1,
+                      max_containers_at_once=1,
                       event_set=None):
         self._mutex.acquire()
         try:
@@ -156,10 +149,6 @@ class BlockadeChaos(object):
                 self._min_containers_at_once = min_containers_at_once
             if max_containers_at_once is not None:
                 self._max_containers_at_once = max_containers_at_once
-            if min_events_at_once is not None:
-                self._min_events_at_once = min_events_at_once
-            if max_events_at_once is not None:
-                self._max_events_at_once = max_events_at_once
             if event_set is not None:
                 self._chaos_events = event_set
         finally:
@@ -179,16 +168,16 @@ class BlockadeChaos(object):
         count = random.randint(self._min_containers_at_once,
                                self._max_containers_at_once)
         targets = container_list[:count]
-        events_at_once = random.randint(self._min_events_at_once,
-                                        self._max_events_at_once)
-        random.shuffle(self._chaos_events)
-        events = self._chaos_events[:events_at_once]
-        for e in events:
-            try:
+        partition_list = []
+        for t in targets:
+            e = random.choice(self._chaos_events)
+            if e == 'PARTITION':
+                partition_list.append(t)
+            else:
                 _g_blockade_event_handlers[e](
-                        self._blockade, targets, container_list)
-            except KeyError:
-                raise errors.BlockadeUsageError("Invalid event %s" % e)
+                    self._blockade, [t], container_list)
+        if len(partition_list) > 0:
+            _partition(self._blockade, partition_list, container_list)
 
     def print_state_machine(self):
         self._sm.draw_mapping()
@@ -373,7 +362,6 @@ class Chaos(object):
                   min_start_delay=30000, max_start_delay=300000,
                   min_run_time=30000, max_run_time=300000,
                   min_containers_at_once=1, max_containers_at_once=1,
-                  min_events_at_once=1, max_events_at_once=1,
                   event_set=None):
         if name in self._active_chaos:
             raise errors.BlockadeUsageError(
@@ -389,8 +377,6 @@ class Chaos(object):
                 max_run_time=max_run_time,
                 min_containers_at_once=min_containers_at_once,
                 max_containers_at_once=max_containers_at_once,
-                min_events_at_once=min_events_at_once,
-                max_events_at_once=max_events_at_once,
                 event_set=event_set)
         self._active_chaos[name] = bc
         return bc
@@ -400,7 +386,6 @@ class Chaos(object):
                        min_run_time=None, max_run_time=None,
                        min_containers_at_once=None,
                        max_containers_at_once=None,
-                       min_events_at_once=None, max_events_at_once=None,
                        event_set=None):
         chaos_b = self._get_chaos_obj(name)
         chaos_b.change_events(
@@ -410,8 +395,6 @@ class Chaos(object):
                 max_run_time=max_run_time,
                 min_containers_at_once=min_containers_at_once,
                 max_containers_at_once=max_containers_at_once,
-                min_events_at_once=min_events_at_once,
-                max_events_at_once=max_events_at_once,
                 event_set=event_set)
 
     def _get_chaos_obj(self, name):

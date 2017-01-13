@@ -222,9 +222,8 @@ partition) upon.
 -----------------------------
 
 Began performing chaos operations on a given blockade.  The user can control
-the number of events that can happen at once as well as the number of
-containers that can be effected in a given degradation period.  What possible
-events can be selected can be controlled as well.  A *degradation* period
+the number of containers that can be effected in a given degradation period as
+well as what possible events can be selected.  A *degradation* period
 will start sometime between *min_start_delay* and *max_start_delay*
 milliseconds and it will last for between *min_run_time* and *max_run_time*
 milliseconds.
@@ -243,8 +242,6 @@ milliseconds.
         "max_run_time": 300000,
         "min_containers_at_once": 1,
         "max_containers_at_once": 2,
-        "min_events_at_once": 1,
-        "max_events_at_once": 2,
         "event_set": ["SLOW", "DUPLICATE", "FLAKY", "STOP", "PARTITION"]
     }
 
