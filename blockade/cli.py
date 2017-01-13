@@ -37,7 +37,6 @@ from .state import BlockadeState
 from .utils import check_docker
 
 
-
 def load_config(config_file=None):
     error = None
     try:
@@ -239,6 +238,12 @@ def cmd_chaos(opts):
     event_set = None
     if opts.events is not None:
         event_set = [i.strip() for i in opts.events.split(",")]
+    if opts.degrade_delay_min > opts.degrade_delay_max:
+        opts.degrade_delay_min = opts.degrade_delay_max
+    if opts.degrade_runtime_min > opts.degrade_runtime_max:
+        opts.degrade_runtime_min = opts.degrade_runtime_max
+    if opts.containers_at_once_min > opts.containers_at_once_max:
+        opts.containers_at_once_min = opts.containers_at_once_max
 
     e = threading.Event()
 
@@ -385,6 +390,8 @@ def setup_parser():
                         "Default: basename of working directory")
     parser.add_argument("--verbose", "-v", action="store_true",
                         help="Print verbose output")
+    parser.add_argument("--debug", "-D", action="store_true",
+                        help="Print verbose output")
     parser.add_argument("--logconf", "-l",
                         help="Path to the log configuration file.")
 
@@ -468,21 +475,28 @@ def setup_parser():
     return parser
 
 
-def _setup_logging(configfile):
-    if configfile is None:
-        l = logging.getLogger("")
+def _setup_logging(opts):
+    if opts.logconf is None:
+        l = logging.getLogger("blockade")
         if len(l.handlers) > 0:
+            # this happens if logging is already setup.  It only comes up in
+            # tests
             return
         handler = logging.StreamHandler()
-        l.setLevel(logging.INFO)
+        if opts.debug:
+            l.setLevel(logging.DEBUG)
+        elif opts.verbose:
+            l.setLevel(logging.INFO)
+        else:
+            l.setLevel(logging.WARN)
         f = '%(asctime)s %(levelname)s %(message)s'
         handler.setFormatter(logging.Formatter(f))
         l.addHandler(handler)
         return
-    if not os.path.exists(configfile):
+    if not os.path.exists(opts.logconf):
         raise BlockadeError(
-                "The logging config file %s does not exist" % configfile)
-    with open(configfile, 'r') as f:
+                "The logging config file %s does not exist" % opts.logconf)
+    with open(opts.logconf, 'r') as f:
         config = yaml.load(f.read())
         logging.config.dictConfig(config)
 
@@ -494,7 +508,7 @@ def main(args=None):
 
     parser = setup_parser()
     opts = parser.parse_args(args=args)
-    _setup_logging(opts.logconf)
+    _setup_logging(opts)
 
     rc = 0
 

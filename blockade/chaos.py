@@ -21,7 +21,7 @@ from blockade import errors
 from blockade import state_machine
 
 
-_logger = logging.getLogger(__file__)
+_logger = logging.getLogger(__name__)
 
 
 def _flaky(blockade, targets, all_containers):

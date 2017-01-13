@@ -22,7 +22,7 @@ import threading
 from blockade import errors
 
 
-_logger = logging.getLogger(__file__)
+_logger = logging.getLogger(__name__)
 StateTransition = namedtuple('StateTransition', 'state func error_state '
                                                 'error_func')
 
