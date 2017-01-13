@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import logging
+import os
+import threading
 
 from clint.textui import puts, puts_err, colored, columns
 
@@ -24,6 +27,7 @@ import traceback
 import yaml
 
 from .api import rest
+from .chaos import BlockadeChaos
 from .config import BlockadeConfig
 from .core import Blockade
 from .errors import BlockadeError
@@ -31,7 +35,6 @@ from .errors import InsufficientPermissionsError
 from .net import BlockadeNetwork
 from .state import BlockadeState
 from .utils import check_docker
-
 
 
 def load_config(config_file=None):
@@ -227,6 +230,57 @@ def cmd_duplicate(opts):
     __with_containers(opts, Blockade.duplicate)
 
 
+def cmd_chaos(opts):
+    config = load_config(opts.config)
+    b = get_blockade(config, opts)
+    b.state.load()
+
+    event_set = None
+    if opts.events is not None:
+        event_set = [i.strip() for i in opts.events.split(",")]
+    if opts.degrade_delay_min > opts.degrade_delay_max:
+        opts.degrade_delay_min = opts.degrade_delay_max
+    if opts.degrade_runtime_min > opts.degrade_runtime_max:
+        opts.degrade_runtime_min = opts.degrade_runtime_max
+    if opts.containers_at_once_min > opts.containers_at_once_max:
+        opts.containers_at_once_min = opts.containers_at_once_max
+
+    e = threading.Event()
+
+    def chaos_ended():
+        e.set()
+
+    c = BlockadeChaos(b, b.state.blockade_id,
+                      min_start_delay=opts.degrade_delay_min,
+                      max_start_delay=opts.degrade_delay_max,
+                      min_run_time=opts.degrade_runtime_min,
+                      max_run_time=opts.degrade_runtime_max,
+                      min_containers_at_once=opts.containers_at_once_min,
+                      max_containers_at_once=opts.containers_at_once_max,
+                      event_set=event_set,
+                      done_notification_func=chaos_ended)
+    try:
+        try:
+            while not e.is_set():
+                # for some reason the thread will not wake up on cnt+c if the
+                # event wait is None
+                e.wait(100000)
+        except KeyboardInterrupt:
+            e.set()
+            puts_err(colored.green("Shutting down chaos...\n"))
+        except BaseException as bex:
+            puts_err(colored.red(
+                    "An exception occurred during chaos.  Attempting to "
+                    "shutdown nicely: %s" % str(bex)))
+        c.stop()
+        c.delete()
+        puts_err(colored.green("Chaos ended.\n"))
+    except BaseException as outer_bex:
+        puts_err(colored.red(
+                "Chaos was not shutdown cleanly.  Containers may be in a "
+                "degraded state: %s" % str(outer_bex)))
+
+
 def cmd_partition(opts):
     """Partition the network between containers
 
@@ -321,6 +375,7 @@ _CMDS = (("up", cmd_up),
          ("join", cmd_join),
          ("daemon", cmd_daemon),
          ("add", cmd_add),
+         ("chaos", cmd_chaos),
          ("version", cmd_version))
 
 
@@ -335,6 +390,10 @@ def setup_parser():
                         "Default: basename of working directory")
     parser.add_argument("--verbose", "-v", action="store_true",
                         help="Print verbose output")
+    parser.add_argument("--debug", "-D", action="store_true",
+                        help="Print verbose output")
+    parser.add_argument("--logconf", "-l",
+                        help="Path to the log configuration file.")
 
     subparsers = parser.add_subparsers(title="commands")
 
@@ -384,7 +443,62 @@ def setup_parser():
     command_parsers["add"].add_argument("containers", nargs="*", metavar='CONTAINER',
         help="Docker container to add to the Blockade group")
 
+    command_parsers["chaos"].add_argument(
+            "--events",
+            help="Only choose events from the given set.  All events are "
+                 "enabled by default.")
+    command_parsers["chaos"].add_argument(
+            "--degrade-delay-min",
+            help="The minimum amount of time to wait between blockade "
+                 "degradation event in milliseconds.", type=int, default=30000)
+    command_parsers["chaos"].add_argument(
+            "--degrade-delay-max",
+            help="The maximum amount of time to wait between blockade "
+                 "degradation event.", type=int, default=300000)
+    command_parsers["chaos"].add_argument(
+            "--degrade-runtime-min",
+            help="The minimum amount of time to run a blockade degradation "
+                 "event in milliseconds.", type=int, default=30000)
+    command_parsers["chaos"].add_argument(
+            "--degrade-runtime-max",
+            help="The maximum amount of time to run a blockade degradation "
+                 "event in milliseconds.", type=int, default=300000)
+    command_parsers["chaos"].add_argument(
+            "--containers-at-once-min",
+            help="The minimum number of containers to effect at once.",
+            type=int, default=1)
+    command_parsers["chaos"].add_argument(
+            "--containers-at-once-max",
+            help="The maximum number of containers to effect at once.",
+            type=int, default=1)
+
     return parser
+
+
+def _setup_logging(opts):
+    if opts.logconf is None:
+        l = logging.getLogger("blockade")
+        if len(l.handlers) > 0:
+            # this happens if logging is already setup.  It only comes up in
+            # tests
+            return
+        handler = logging.StreamHandler()
+        if opts.debug:
+            l.setLevel(logging.DEBUG)
+        elif opts.verbose:
+            l.setLevel(logging.INFO)
+        else:
+            l.setLevel(logging.WARN)
+        f = '%(asctime)s %(levelname)s %(message)s'
+        handler.setFormatter(logging.Formatter(f))
+        l.addHandler(handler)
+        return
+    if not os.path.exists(opts.logconf):
+        raise BlockadeError(
+                "The logging config file %s does not exist" % opts.logconf)
+    with open(opts.logconf, 'r') as f:
+        config = yaml.load(f.read())
+        logging.config.dictConfig(config)
 
 
 def main(args=None):
@@ -394,6 +508,7 @@ def main(args=None):
 
     parser = setup_parser()
     opts = parser.parse_args(args=args)
+    _setup_logging(opts)
 
     rc = 0
 
