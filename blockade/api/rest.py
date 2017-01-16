@@ -45,10 +45,12 @@ def stack_trace_handler(signum, frame):
     app.logger.warn("\n".join(code))
 
 
-def start(data_dir='/tmp', port=5000, debug=False):
+def start(data_dir='/tmp', port=5000, debug=False, host_exec=None):
     signal.signal(signal.SIGUSR2, stack_trace_handler)
 
     BlockadeManager.set_data_dir(data_dir)
+    if host_exec:
+        BlockadeManager.set_host_exec(host_exec)
     app.debug = debug
     http_server = WSGIServer(('', port), app)
     http_server.serve_forever()

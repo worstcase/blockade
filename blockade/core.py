@@ -31,7 +31,6 @@ from .errors import BlockadeContainerConflictError
 from .errors import BlockadeError
 from .errors import DockerContainerNotFound
 from .errors import InsufficientPermissionsError
-from .net import BlockadeNetwork
 from .net import NetworkState
 from .state import BlockadeState
 
@@ -47,7 +46,7 @@ class Blockade(object):
                  network=None, docker_client=None):
         self.config = config
         self.state = state or BlockadeState(blockade_id=blockade_id)
-        self.network = network or BlockadeNetwork(config)
+        self.network = network
         try:
             self._audit = audit.EventAuditor(self.state.get_audit_file())
         except Exception as ex:

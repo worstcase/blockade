@@ -30,17 +30,22 @@ from clint.textui.colored import ColoredString
 from blockade.tests import unittest
 import blockade.cli
 from .util import wait
+from .helpers import HostExecHelper
 
 
 INT_ENV = "BLOCKADE_INTEGRATION_TESTS"
 INT_SKIP = (not os.getenv(INT_ENV), "export %s=1 to run" % INT_ENV)
 
 
-class FakeExit(BaseException):
+class FakeExit(Exception):
     def __init__(self, rc):
         self.rc = rc
         self.stdout = None
         self.stderr = None
+
+    def __str__(self):
+        return "FakeExit rc=%s\nstdout:\n%s\n\nstderr:%s" % (self.rc,
+            self.stdout, self.stderr)
 
 
 def example_config_path(filename):
@@ -91,6 +96,9 @@ class IntegrationTests(unittest.TestCase):
         self.oldcwd = os.getcwd()
         os.chdir(self.tempdir)
 
+        self.host_exec_helper = HostExecHelper()
+        self.host_exec_helper.setup_prefix_env()
+
     def tearDown(self):
         if self.sysexit_patch:
             self.sysexit_patch.stop()
@@ -102,6 +110,8 @@ class IntegrationTests(unittest.TestCase):
                 shutil.rmtree(self.tempdir)
             except Exception:
                 pass
+
+        self.host_exec_helper.tearDown()
 
     def call_blockade(self, *args):
         stdout = StringIO()
@@ -132,20 +142,6 @@ class IntegrationTests(unittest.TestCase):
     def test_version(self):
         stdout, _ = self.call_blockade("version")
         self.assertIn(blockade.__version__, stdout)
-
-    def test_bad_docker_api(self):
-        prev_docker_host_env = os.environ.get("DOCKER_HOST")
-        os.environ["DOCKER_HOST"] = "notarealhostatall:12345"
-        try:
-
-            with self.assertRaises(FakeExit) as cm:
-                _, stderr = self.call_blockade("status")
-            self.assertIn("Unable to connect to Docker", cm.exception.stderr)
-        finally:
-            if prev_docker_host_env is not None:
-                os.environ["DOCKER_HOST"] = prev_docker_host_env
-            else:
-                del os.environ["DOCKER_HOST"]
 
     @unittest.skipIf(*INT_SKIP)
     def test_containers(self):

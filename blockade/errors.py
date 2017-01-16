@@ -65,6 +65,24 @@ class DockerContainerNotFound(BlockadeError):
     """
 
 
+class HostExecError(BlockadeError):
+    """Error in host command
+    """
+
+    def __init__(self, message, output=None, exit_code=None):
+        super(HostExecError, self).__init__(message)
+        self.output = output
+        self.exit_code = exit_code
+
+    def __str__(self):
+        message = super(HostExecError, self).__str__()
+        if self.exit_code is not None and self.output is not None:
+            return "%s rc=%s output=%s" % (message, self.exit_code, self.output)
+        if self.output is not None:
+            return "%s output=%s" % (message, self.output)
+        return message
+
+
 class BlockadeStateTransitionError(BlockadeError):
     """The state machine was given an invalid event.  Based on the state that
      it is in and the event received the state machine could not process the
