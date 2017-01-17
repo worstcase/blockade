@@ -369,19 +369,21 @@ def cmd_events(opts):
     b = get_blockade(config, opts)
 
     if opts.json:
-        outf = sys.stdout
+        outf = None
+        _write = puts
         if opts.output is not None:
-            outf = open(opts.output, "r")
+            outf = open(opts.output, "w")
+            _write = outf.write
         try:
             delim = ""
             logs = b.get_audit().read_logs(as_json=False)
-            outf.write('{"events": [')
-            outf.write(os.linesep)
+            _write('{"events": [')
+            _write(os.linesep)
             for l in logs:
-                outf.write(delim + l)
+                _write(delim + l)
                 delim = "," + os.linesep
-            outf.write(os.linesep)
-            outf.write(']}')
+            _write(os.linesep)
+            _write(']}')
         finally:
             if opts.output is not None:
                 outf.close()
