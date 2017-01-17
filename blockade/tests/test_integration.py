@@ -188,6 +188,42 @@ class IntegrationTests(unittest.TestCase):
                 traceback.print_exc(file=sys.stdout)
 
     @unittest.skipIf(*INT_SKIP)
+    def test_events(self):
+        config_path = example_config_path("sleep/blockade.yaml")
+
+        try:
+            self.call_blockade("-c", config_path, "up")
+            self.call_blockade("-c", config_path, "flaky", "c1")
+            self.call_blockade("-c", config_path, "slow", "c2", "c3")
+
+            expected_events = ["flaky", "slow"]
+
+            # call events in all 3 ways
+            stdout, _ = self.call_blockade("-c", config_path, "events")
+            self.assertTrue(stdout.strip())  # just ensure there IS output
+
+            stdout, _ = self.call_blockade("-c", config_path, "events",
+                                           "--json")
+            parsed = json.loads(stdout)
+            events = [e["event"] for e in parsed["events"]]
+            self.assertEquals(expected_events, events)
+
+            stdout, _ = self.call_blockade("-c", config_path, "events",
+                                           "--json", "--output", "output.json")
+            self.assertEquals(0, len(stdout.strip()))
+            with open("output.json") as f:
+                parsed = json.load(f)
+            events = [e["event"] for e in parsed["events"]]
+            self.assertEquals(expected_events, events)
+
+        finally:
+            try:
+                self.call_blockade("-c", config_path, "destroy")
+            except Exception:
+                print("Failed to destroy Blockade!")
+                traceback.print_exc(file=sys.stdout)
+
+    @unittest.skipIf(*INT_SKIP)
     def test_containers_name_check(self):
 
         try:

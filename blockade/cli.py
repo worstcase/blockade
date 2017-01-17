@@ -134,7 +134,8 @@ def _check_container_selections(opts):
     elif opts.all and opts.random:
         raise BlockadeError("Specify either --all or --random, but not both")
     elif not (opts.containers or opts.all or opts.random):
-        raise BlockadeError("Specify individual containers or --all or --random")
+        raise BlockadeError(
+            "Specify individual containers or --all or --random")
 
     return (opts.containers or None, opts.all, opts.random)
 
@@ -172,7 +173,9 @@ def __with_containers(opts, func, **kwargs):
     b.state.load()
 
     configured_containers = set(b.state.containers.keys())
-    container_names = configured_containers if select_all or (select_random and not containers) else configured_containers.intersection(containers)
+    container_names = configured_containers \
+        if select_all or (select_random and not containers)\
+        else configured_containers.intersection(containers)
 
     if len(container_names) > 0:
         kwargs['select_random'] = select_random
@@ -359,6 +362,47 @@ def cmd_version(opts):
     puts("Blockade " + blockade.version.__version__)
 
 
+def cmd_events(opts):
+    """Get the event log for a given blockade
+    """
+    config = load_config(opts.config)
+    b = get_blockade(config, opts)
+
+    if opts.json:
+        outf = None
+        _write = puts
+        if opts.output is not None:
+            outf = open(opts.output, "w")
+            _write = outf.write
+        try:
+            delim = ""
+            logs = b.get_audit().read_logs(as_json=False)
+            _write('{"events": [')
+            _write(os.linesep)
+            for l in logs:
+                _write(delim + l)
+                delim = "," + os.linesep
+            _write(os.linesep)
+            _write(']}')
+        finally:
+            if opts.output is not None:
+                outf.close()
+    else:
+        puts(colored.blue(columns(["EVENT",         10],
+                                  ["TARGET",        16],
+                                  ["STATUS",         8],
+                                  ["TIME",          16],
+                                  ["MESSAGE",       25])))
+
+        logs = b.get_audit().read_logs(as_json=True)
+        for l in logs:
+            puts(columns([l['event'],                          10],
+                         [str([str(t) for t in l['targets']]), 16],
+                         [l['status'],                          8],
+                         [str(l['timestamp']),                 16],
+                         [l['message'],                        25]))
+
+
 _CMDS = (("up", cmd_up),
          ("destroy", cmd_destroy),
          ("status", cmd_status),
@@ -376,6 +420,7 @@ _CMDS = (("up", cmd_up),
          ("daemon", cmd_daemon),
          ("add", cmd_add),
          ("chaos", cmd_chaos),
+         ("events", cmd_events),
          ("version", cmd_version))
 
 
@@ -383,8 +428,9 @@ def setup_parser():
     parser = argparse.ArgumentParser(description='Blockade')
     parser.add_argument("--config", "-c", metavar="blockade.yaml",
                         help="Config YAML. Looks in CWD if not specified.")
-    parser.add_argument("--data-dir", "-d", metavar="DIR", action="store",
-                        help="Base directory for state data. CWD if not specified.")
+    parser.add_argument(
+        "--data-dir", "-d", metavar="DIR", action="store",
+        help="Base directory for state data. CWD if not specified.")
     parser.add_argument("-n", "--name", metavar="NAME",
                         help="Unique name for blockade. "
                         "Default: basename of working directory")
@@ -409,9 +455,9 @@ def setup_parser():
     # add additional parameters to some commands
     up_parser = command_parsers["up"]
     _add_output_options(up_parser)
-    up_parser.add_argument("-f", "--force",
-                           action="store_true",
-                           help="Try to remove any conflicting containers if necessary")
+    up_parser.add_argument(
+        "-f", "--force", action="store_true",
+        help="Try to remove any conflicting containers if necessary")
 
     _add_output_options(command_parsers["status"])
 
@@ -427,20 +473,27 @@ def setup_parser():
     command_parsers["logs"].add_argument("container", metavar='CONTAINER',
                                          help="Container to fetch logs for")
 
-    command_parsers["partition"].add_argument('partitions', nargs='*', metavar='PARTITION',
+    command_parsers["partition"].add_argument(
+        'partitions', nargs='*', metavar='PARTITION',
         help='Comma-separated partition')
-    command_parsers["partition"].add_argument("-z", "--random", action='store_true',
+    command_parsers["partition"].add_argument(
+        "-z", "--random", action='store_true',
         help='Randomly select zero or more partitions')
 
-    command_parsers["kill"].add_argument("-s", "--signal", action="store", default="SIGKILL",
-        help="Specify the signal to be sent (str or int). Defaults to SIGKILL.")
+    command_parsers["kill"].add_argument(
+        "-s", "--signal", action="store", default="SIGKILL",
+        help="Specify the signal to be sent (str or int). Defaults to "
+             "SIGKILL.")
 
-    command_parsers["daemon"].add_argument("--debug", action='store_true',
+    command_parsers["daemon"].add_argument(
+        "--debug", action='store_true',
         help="Enable debug for the REST API")
-    command_parsers["daemon"].add_argument("-p", "--port", action='store',
+    command_parsers["daemon"].add_argument(
+        "-p", "--port", action='store',
         type=int, default=5000, help="REST API port. Default is 5000.")
 
-    command_parsers["add"].add_argument("containers", nargs="*", metavar='CONTAINER',
+    command_parsers["add"].add_argument(
+        "containers", nargs="*", metavar='CONTAINER',
         help="Docker container to add to the Blockade group")
 
     command_parsers["chaos"].add_argument(
@@ -471,6 +524,15 @@ def setup_parser():
             "--containers-at-once-max",
             help="The maximum number of containers to effect at once.",
             type=int, default=1)
+
+    command_parsers["events"].add_argument(
+            "--json", action='store_true',
+            help="Show the data in JSON format.")
+    command_parsers["events"].add_argument(
+            "--output",
+            help="A path to the file where the data should be written.  The "
+                 "default is stdout.",
+            type=str)
 
     return parser
 
@@ -520,7 +582,8 @@ def main(args=None):
 
         opts.func(opts)
     except InsufficientPermissionsError as e:
-        puts_err(colored.red("\nInsufficient permissions error:\n") + str(e) + "\n")
+        puts_err(colored.red(
+                "\nInsufficient permissions error:\n") + str(e) + "\n")
         rc = 1
     except BlockadeError as e:
         puts_err(colored.red("\nError:\n") + str(e) + "\n")

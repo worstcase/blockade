@@ -104,6 +104,15 @@ class RestIntegrationTests(LiveServerTestCase):
         assert c1_partition is None
         assert c2_partition is None
 
+    def _assert_event(self, event_name):
+        url = self.url + '/events'
+        result = requests.get(url)
+        events = result.json()
+        for e in events['events']:
+            if e['event'] == event_name.lower():
+                return
+        assert False
+
     @unittest.skipIf(*INT_SKIP)
     def test_partition(self):
         data = '''
@@ -115,7 +124,7 @@ class RestIntegrationTests(LiveServerTestCase):
         result = requests.post(url, headers=self.headers, data=data)
         assert result.status_code == 204
         self._assert_partition()
-
+        self._assert_event('partition')
         result = requests.delete(url)
         self._assert_join()
 
@@ -147,6 +156,7 @@ class RestIntegrationTests(LiveServerTestCase):
         result = requests.post(url, headers=self.headers, data=data)
         assert result.status_code == 204
         self._assert_container_status('c1', 'DOWN')
+        self._assert_event('kill')
 
     @unittest.skipIf(*INT_SKIP)
     def test_action_start(self):
@@ -160,6 +170,7 @@ class RestIntegrationTests(LiveServerTestCase):
         result = requests.post(url, headers=self.headers, data=data)
         assert result.status_code == 204
         self._assert_container_status('c1', 'UP')
+        self._assert_event('start')
 
     def _assert_container_network_state(self, container_name, network_state):
         result_data = self._get_blockade()
@@ -179,6 +190,7 @@ class RestIntegrationTests(LiveServerTestCase):
         result = requests.post(url, headers=self.headers, data=data)
         assert result.status_code == 204
         self._assert_container_network_state('c1', 'SLOW')
+        self._assert_event('slow')
 
     def _test_basic_events(self, event):
         data = '''

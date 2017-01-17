@@ -17,7 +17,7 @@ import signal
 import sys
 import traceback
 
-from flask import Flask, abort, jsonify, request
+from flask import Flask, abort, jsonify, request, Response
 from gevent.wsgi import WSGIServer
 
 from blockade import chaos
@@ -184,7 +184,6 @@ def delete_partitions(name):
 
     b = BlockadeManager.get_blockade(name)
     b.join()
-
     return '', 204
 
 
@@ -227,6 +226,22 @@ def status(name):
     return jsonify(containers=containers)
 
 
+@app.route("/blockade/<name>/events")
+def get_events(name):
+    if not BlockadeManager.blockade_exists(name):
+        abort(404, "The blockade %s does not exist" % name)
+
+    b = BlockadeManager.get_blockade(name)
+
+    def generate():
+        yield '{"events": ['
+        for a in b.get_audit().read_logs(as_json=False):
+            yield a
+        yield ']}'
+
+    return Response(generate(), mimetype='application/json')
+
+
 @app.route("/blockade/<name>", methods=['DELETE'])
 def destroy(name):
     if not BlockadeManager.blockade_exists(name):
@@ -240,7 +255,7 @@ def destroy(name):
 
     b = BlockadeManager.get_blockade(name)
     b.destroy()
-
+    b.get_audit().clean()
     BlockadeManager.delete_config(name)
 
     return '', 204

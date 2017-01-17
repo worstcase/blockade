@@ -16,6 +16,8 @@
 
 from __future__ import print_function
 
+import logging
+
 import docker
 import errno
 import random
@@ -23,6 +25,7 @@ import six
 import sys
 import time
 
+from blockade import audit
 from .errors import AlreadyInitializedError
 from .errors import BlockadeContainerConflictError
 from .errors import BlockadeError
@@ -36,6 +39,8 @@ from .state import BlockadeState
 # TODO: configurable timeout
 DEFAULT_KILL_TIMEOUT = 3
 
+_logger = logging.getLogger(__name__)
+
 
 class Blockade(object):
     def __init__(self, config, blockade_id=None, state=None,
@@ -43,6 +48,11 @@ class Blockade(object):
         self.config = config
         self.state = state or BlockadeState(blockade_id=blockade_id)
         self.network = network or BlockadeNetwork(config)
+        try:
+            self._audit = audit.EventAuditor(self.state.get_audit_file())
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
 
         default_client = docker.Client(
             **docker.utils.kwargs_from_env(assert_hostname=False)
@@ -338,12 +348,22 @@ class Blockade(object):
         return self._get_running_containers((container_name,))[0]
 
     def __with_running_container_device(self, container_names, func, select_random=False):
-        containers = self._get_running_containers(container_names, select_random)
-        container_names = [c.name for c in containers]
-        for container in containers:
-            device = container.device
-            func(device)
-        return container_names
+        message = ""
+        audit_status = "Success"
+        try:
+            containers = self._get_running_containers(container_names, select_random)
+            container_names = [c.name for c in containers]
+            for container in containers:
+                device = container.device
+                func(device)
+            return container_names
+        except Exception as ex:
+            audit_status = "Failed"
+            message = str(ex)
+            raise
+        finally:
+            self._audit.log_event(func.__name__, audit_status, message,
+                                  container_names)
 
     def flaky(self, container_names, select_random=False):
         return self.__with_running_container_device(container_names, self.network.flaky, select_random)
@@ -358,41 +378,81 @@ class Blockade(object):
         return self.__with_running_container_device(container_names, self.network.fast, select_random)
 
     def restart(self, container_names, select_random=False):
-        containers = self._get_running_containers(container_names, select_random)
-        container_names = [c.name for c in containers]
-        for container in containers:
-            self._stop(container)
-            self._start(container.name)
-        return container_names
+        message = ""
+        audit_status = "Success"
+        try:
+            containers = self._get_running_containers(container_names, select_random)
+            container_names = [c.name for c in containers]
+            for container in containers:
+                self._stop(container)
+                self._start(container.name)
+            return container_names
+        except Exception as ex:
+            message = str(ex)
+            audit_status = "Failed"
+            raise
+        finally:
+            self._audit.log_event('restart', audit_status, message,
+                                  container_names)
 
     def kill(self, container_names, signal="SIGKILL", select_random=False):
-        containers = self._get_running_containers(container_names, select_random)
-        container_names = [c.name for c in containers]
-        for container in containers:
-            self._kill(container, signal)
-        return container_names
+        message = ''
+        audit_status = "Success"
+        try:
+            containers = self._get_running_containers(container_names, select_random)
+            container_names = [c.name for c in containers]
+            for container in containers:
+                self._kill(container, signal)
+            return container_names
+        except Exception as ex:
+            message = str(ex)
+            audit_status = "Failed"
+            raise
+        finally:
+            self._audit.log_event('kill', audit_status, message,
+                                  container_names)
 
     def _kill(self, container, signal):
         self.docker_client.kill(container.container_id, signal)
 
     def stop(self, container_names, select_random=False):
-        # it is valid to try to stop an already stopped container
-        containers = self._get_created_containers(container_names, select_random)
-        container_names = [c.name for c in containers]
-        for container in containers:
-            self._stop(container)
-        return container_names
+        message = ''
+        audit_status = "Success"
+        try:
+            # it is valid to try to stop an already stopped container
+            containers = self._get_created_containers(container_names, select_random)
+            container_names = [c.name for c in containers]
+            for container in containers:
+                self._stop(container)
+            return container_names
+        except Exception as ex:
+            message = str(ex)
+            audit_status = "Failed"
+            raise
+        finally:
+            self._audit.log_event('stop', audit_status, message,
+                                  container_names)
 
     def _stop(self, container):
         self.docker_client.stop(container.container_id, timeout=DEFAULT_KILL_TIMEOUT)
 
     def start(self, container_names, select_random=False):
-        # it is valid to try to start an already running container
-        containers = self._get_created_containers(container_names, select_random)
-        container_names = [c.name for c in containers]
-        for container in container_names:
-            self._start(container)
-        return container_names
+        message = ''
+        audit_status = "Success"
+        try:
+            # it is valid to try to start an already running container
+            containers = self._get_created_containers(container_names, select_random)
+            container_names = [c.name for c in containers]
+            for container in container_names:
+                self._start(container)
+            return container_names
+        except Exception as ex:
+            message = str(ex)
+            audit_status = "Failed"
+            raise
+        finally:
+            self._audit.log_event('start', audit_status, message,
+                                  container_names)
 
     def _start(self, container):
         container_id = self.state.container_id(container)
@@ -438,20 +498,39 @@ class Blockade(object):
             return partitions
 
     def partition(self, partitions):
-        containers = self._get_running_containers()
-        container_dict = dict((c.name, c) for c in containers)
-        partitions = expand_partitions(containers, partitions)
+        message = ''
+        audit_status = "Success"
+        try:
+            containers = self._get_running_containers()
+            container_dict = dict((c.name, c) for c in containers)
+            partitions = expand_partitions(containers, partitions)
 
-        container_partitions = []
-        for partition in partitions:
-            container_partitions.append([container_dict[c] for c in partition])
+            container_partitions = []
+            for partition in partitions:
+                container_partitions.append([container_dict[c] for c in partition])
 
-        self.network.partition_containers(self.state.blockade_id,
-                                          container_partitions)
+            self.network.partition_containers(self.state.blockade_id,
+                                              container_partitions)
+        except Exception as ex:
+            message = str(ex)
+            audit_status = "Failed"
+            raise
+        finally:
+            self._audit.log_event('partition', audit_status, message,
+                                  partitions)
 
     def join(self):
-        self.state.load()
-        self.network.restore(self.state.blockade_id)
+        message = ''
+        audit_status = "Success"
+        try:
+            self.state.load()
+            self.network.restore(self.state.blockade_id)
+        except Exception as ex:
+            message = str(ex)
+            audit_status = "Failed"
+            raise
+        finally:
+            self._audit.log_event('join', audit_status, message, [])
 
     def logs(self, container_name):
         container = self._get_running_container(container_name)
@@ -491,6 +570,9 @@ class Blockade(object):
 
         # persist the state
         self.state.update(updated_containers)
+
+    def get_audit(self):
+        return self._audit
 
 
 class Container(object):

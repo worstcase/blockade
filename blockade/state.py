@@ -186,3 +186,12 @@ class BlockadeState(object):
             # clean up our created file
             self._state_delete()
             raise
+
+    def get_audit_file(self):
+        audit_dir = os.path.join(self._state_dir, "audit")
+        try:
+            os.makedirs(audit_dir, 0o755)
+        except OSError as os_e:
+            if os_e.errno != errno.EEXIST:
+                raise
+        return os.path.join(audit_dir, "%s.json" % self._blockade_id)
