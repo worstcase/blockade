@@ -1,16 +1,17 @@
 containers:
   c1:
-    image: ubuntu:trusty
+    # run commands under tini, so signals are correctly proxied
+    image: krallin/ubuntu-tini:trusty
     hostname: c1
-    command: sh -c 'echo "I am $HOSTNAME"; /bin/sleep 300'
+    command: ["sh", "-c", "echo I am $HOSTNAME; /bin/sleep 300"]
     volumes: {"/tmp": "/mnt"}
 
   c2:
-    image: ubuntu:trusty
+    image: krallin/ubuntu-tini:trusty
     hostname: c2
-    command: sh -c 'echo "I am $HOSTNAME"; /bin/sleep 300'
+    command: ["sh", "-c", "echo I am $HOSTNAME; /bin/sleep 300"]
 
   c3:
-    image: ubuntu:trusty
+    image: krallin/ubuntu-tini:trusty
     hostname: c3
-    command: sh -c 'echo "I am $HOSTNAME"; /bin/sleep 300'
+    command: ["sh", "-c", "echo I am $HOSTNAME; /bin/sleep 300"]

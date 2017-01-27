@@ -13,38 +13,108 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+import os
 import time
+import signal
+import random
+import multiprocessing
+
+import requests
 from flask.ext.testing import LiveServerTestCase
 
-from blockade.api.rest import app
+from blockade.api.rest import app, stack_trace_handler
+from blockade.api.manager import BlockadeManager
+from blockade.host import HostExec
 from blockade.tests import unittest
 from blockade.tests.test_integration import INT_SKIP
+from blockade.tests.helpers import HostExecHelper
+from blockade.tests.util import wait
 
-import random
-import requests
+
+def wait_for_children():
+    """Wait for child processes to exit
+
+    The testing system launches and terminates child processes, but
+    doesn't wait for them to actually die. So in a few places we need
+    this extra call"""
+    wait(lambda: len(multiprocessing.active_children()) == 0)
 
 
+@unittest.skipIf(*INT_SKIP)
 class RestIntegrationTests(LiveServerTestCase):
 
     headers = {'Content-Type': 'application/json'}
+    host_exec_helper = None
+
+    @classmethod
+    def setUpClass(cls):
+        cls.host_exec_helper = HostExecHelper()
+        # this sets up an environment variable that controls the prefix
+        # used for all host exec helper containers. This env will be
+        # respected by the Flask app child process, and allows us to
+        # assert that containers are correctly torn down by the testing
+        # rig.
+        cls.host_exec_helper.setup_prefix_env()
+
+    @classmethod
+    def tearDownClass(cls):
+
+        # LiveServerTestCase sends SIGTERM to child processes, but doesn't
+        # wait for exit. So we wait up to 9 seconds for all children to be
+        # gone.
+        wait_for_children()
+
+        if cls.host_exec_helper:
+            cls.host_exec_helper.tearDown()
 
     def create_app(self):
+        # HACK: wait for any previous processes to exit. We do it here because
+        # this is the only opportunity LiveServerTestCase provides:
+        # setUp/tearDown is too late/early.
+        wait_for_children()
+
         app.config['TESTING'] = True
+        app.config['DEBUG'] = True
+
+        # LiveServerTestCase runs the server in a multiprocessing.Process,
+        # and doesn't provide an obvious place for setup/teardown logic
+        # *in* the child process. So we monkeypatch app.run to set up a
+        # SIGTERM handler that runs our HostExec cleanup.
+
+        real_run = app.run
+
+        def _wrapped_run(*args, **kwargs):
+            host_exec = HostExec()
+            BlockadeManager.set_host_exec(host_exec)
+
+            def _cleanup_host_exec(*args):
+                host_exec.close()
+                os._exit(0)
+
+            signal.signal(signal.SIGTERM, _cleanup_host_exec)
+            signal.signal(signal.SIGUSR2, stack_trace_handler)
+
+            real_run(*args, **kwargs)
+
+        app.run = _wrapped_run
+
         return app
 
     def setUp(self):
+
         data = '''
             {
                 "containers": {
                     "c1": {
-                        "image": "ubuntu:trusty",
+                        "image": "krallin/ubuntu-tini:trusty",
                         "hostname": "c1",
-                        "command": "/bin/sleep 300"
+                        "command": ["/bin/sleep", "300"]
                     },
                     "c2": {
-                        "image": "ubuntu:trusty",
+                        "image": "krallin/ubuntu-tini:trusty",
                         "hostname": "c2",
-                        "command": "/bin/sleep 300"
+                        "command": ["/bin/sleep", "300"]
                     }
                 }
             }

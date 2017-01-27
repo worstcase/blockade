@@ -27,11 +27,16 @@ DATA_DIR = "/tmp"
 class BlockadeManager:
     """Simple helper for what should eventually be persisted via BlockadeState
     """
+    host_exec = None
 
     @staticmethod
     def set_data_dir(data_dir):
         global DATA_DIR
         DATA_DIR = data_dir
+
+    @staticmethod
+    def set_host_exec(host_exec):
+        BlockadeManager.host_exec = host_exec
 
     @staticmethod
     def blockade_exists(name):
@@ -61,10 +66,13 @@ class BlockadeManager:
     def get_blockade(name):
         global BLOCKADE_CONFIGS
         config = BLOCKADE_CONFIGS[name]
+        host_exec = BlockadeManager.host_exec
+        if host_exec is None:
+            raise ValueError("host exec not set")
         return Blockade(config,
                         blockade_id=name,
                         state=BlockadeManager.load_state(name),
-                        network=BlockadeNetwork(config))
+                        network=BlockadeNetwork(config, host_exec))
 
     @staticmethod
     def get_all_blockade_names():
