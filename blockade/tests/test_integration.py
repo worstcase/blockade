@@ -228,12 +228,12 @@ class IntegrationTests(unittest.TestCase):
                 f.write(dedent('''\
                     containers:
                       zzz:
-                        image: ubuntu:trusty
-                        command: sleep infinity
+                        image: krallin/ubuntu-tini:trusty
+                        command: ["sleep", "infinity"]
                         expose: [10000]
                       aaa:
-                        image: ubuntu:trusty
-                        command: sleep infinity
+                        image: krallin/ubuntu-tini:trusty
+                        command: ["sleep", "infinity"]
                         links: ["zzz"]
                     '''))
 
@@ -265,12 +265,12 @@ class IntegrationTests(unittest.TestCase):
                     containers:
                       zzz:
                         container_name: zzz
-                        image: ubuntu:trusty
-                        command: sh -c "sleep 3 && ping -i1 -c3 aaa && sleep infinity"
+                        image: krallin/ubuntu-tini:trusty
+                        command: ["sh", "-c", "sleep 3 && ping -i1 -c3 aaa && sleep infinity"]
                       aaa:
                         container_name: aaa
-                        image: ubuntu:trusty
-                        command: sh -c "sleep 3 && ping -i1 -c3 zzz && sleep infinity"
+                        image: krallin/ubuntu-tini:trusty
+                        command: ["sh", "-c", "sleep 3 && ping -i1 -c3 zzz && sleep infinity"]
                     network:
                       driver: udn
                     '''))

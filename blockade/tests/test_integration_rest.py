@@ -107,14 +107,14 @@ class RestIntegrationTests(LiveServerTestCase):
             {
                 "containers": {
                     "c1": {
-                        "image": "ubuntu:trusty",
+                        "image": "krallin/ubuntu-tini:trusty",
                         "hostname": "c1",
-                        "command": "/bin/sleep 300"
+                        "command": ["/bin/sleep", "300"]
                     },
                     "c2": {
-                        "image": "ubuntu:trusty",
+                        "image": "krallin/ubuntu-tini:trusty",
                         "hostname": "c2",
-                        "command": "/bin/sleep 300"
+                        "command": ["/bin/sleep", "300"]
                     }
                 }
             }
