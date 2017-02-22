@@ -2,8 +2,8 @@
 Blockade
 ********
 
-.. image:: https://travis-ci.org/dcm-oss/blockade.png?branch=master
-        :target: https://travis-ci.org/dcm-oss/blockade
+.. image:: https://travis-ci.org/worstcase/blockade.png?branch=master
+        :target: https://travis-ci.org/worstcase/blockade
 
 Blockade is a utility for testing network failures and partitions in
 distributed applications. Blockade uses `Docker <http://www.docker.io>`_
@@ -31,13 +31,9 @@ Blockade features:
   freely communicate with the host system -- so you can still grab logs
   and monitor the application.
 
-Blockade is written and maintained by the
-`Dell Cloud Manager <http://www.enstratius.com>`_ (formerly Enstratius)
-team and is used internally to test the behaviors of our software.
-We also release a number of other internal components as open source,
-most notably `Dasein Cloud <http://dasein.org>`_.
-
-Inspired by the excellent `Jepsen <http://aphyr.com/tags/jepsen>`_ series.
+Blockade was originally developed by the Dell Cloud Manager
+(formerly Enstratius) team. Blockade was inspired by the excellent
+`Jepsen <http://aphyr.com/tags/jepsen>`_ series.
 
 
 Requirements
