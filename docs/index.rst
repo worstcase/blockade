@@ -27,12 +27,9 @@ Blockade features:
   freely communicate with the host system -- so you can still grab logs
   and monitor the application.
 
-Blockade is written and maintained by the `Dell Cloud Manager`_ (formerly
-Enstratius) team and is used internally to test the behaviors of our software.
-We also release a number of other internal components as open source,
-most notably `Dasein Cloud`_.
-
-Blockade is inspired by the excellent `Jepsen`_ article series.
+Blockade was originally developed by the Dell Cloud Manager
+(formerly Enstratius) team. Blockade is inspired by the excellent
+`Jepsen`_ article series.
 
 Get started with the :ref:`guide`!
 
@@ -52,9 +49,9 @@ Reference Documentation
 Development and Support
 =======================
 
-Blockade is `available on github <https://github.com/dcm-oss/blockade>`_.
+Blockade is `available on github <https://github.com/worstcase/blockade>`_.
 Bug reports should be reported as
-`issues <https://github.com/dcm-oss/blockade/issues>`_ there.
+`issues <https://github.com/worstcase/blockade/issues>`_ there.
 
 License
 =======
@@ -67,6 +64,4 @@ Blockade is offered under the Apache License 2.0.
 
 .. _Docker: https://www.docker.com
 .. _named links: https://docs.docker.com/engine/userguide/networking/default_network/dockerlinks/
-.. _Dell Cloud Manager: http://www.enstratius.com
-.. _Dasein Cloud: http://dasein.org
 .. _Jepsen: http://aphyr.com/tags/jepsen
