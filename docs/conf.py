@@ -44,7 +44,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'blockade'
-copyright = u'2014, Dell Cloud Manager'
+copyright = u'Quest Software and contributors'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -209,7 +209,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
   ('index', 'blockade.tex', u'blockade Documentation',
-   u'Dell Cloud Manager', 'manual'),
+   u'Quest', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -239,7 +239,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'blockade', u'blockade Documentation',
-     [u'Dell Cloud Manager'], 1)
+     [u'Quest'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -253,7 +253,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'blockade', u'blockade Documentation',
-   u'Dell Cloud Manager', 'blockade', 'One line description of project.',
+   u'Quest', 'blockade', 'One line description of project.',
    'Miscellaneous'),
 ]
 
