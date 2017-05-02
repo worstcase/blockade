@@ -102,7 +102,8 @@ class BlockadeState(object):
 
     def update(self, containers):
         '''Update the current state file with the specified contents'''
-        self.__write(deepcopy(containers), initialize=False)
+        self._containers = deepcopy(containers)
+        self.__write(containers, initialize=False)
 
     def load(self):
         '''Try to load a blockade state file in the current directory'''

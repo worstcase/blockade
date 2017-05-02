@@ -66,6 +66,19 @@ class BlockadeStateTests(unittest.TestCase):
         self.assertFalse(os.path.exists(".blockade/state.yml"))
         self.assertFalse(os.path.exists(".blockade"))
 
+    def test_state_update(self):
+        containers = {"n1": {"a": 1}, "n2": {"a": 4}}
+        self.state.initialize(containers=containers)
+
+        containers["n1"] = {"a": 2}
+        self.state.update(containers)
+
+        self.assertEqual(self.state.containers["n1"], {"a": 2})
+        self.assertEqual(self.state.containers["n2"], {"a": 4})
+        self.state.load()
+        self.assertEqual(self.state.containers["n1"], {"a": 2})
+        self.assertEqual(self.state.containers["n2"], {"a": 4})
+
     def test_state_uninitialized(self):
         with self.assertRaises(NotInitializedError):
             self.state.load()

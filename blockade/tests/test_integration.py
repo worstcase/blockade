@@ -350,3 +350,19 @@ class IntegrationTests(unittest.TestCase):
                 print("Failed to destroy Blockade!")
                 traceback.print_exc(file=sys.stdout)
 
+    @unittest.skipIf(*INT_SKIP)
+    def test_veth_update(self):
+        config_path = example_config_path("sleep/blockade.yaml")
+
+        try:
+            self.call_blockade("-c", config_path, "up")
+
+            self.call_blockade("-c", config_path, "stop", "c1", "c2")
+            self.call_blockade("-c", config_path, "start", "c1", "c2")
+            self.call_blockade("-c", config_path, "slow", "c1", "c2")
+        finally:
+            try:
+                self.call_blockade("-c", config_path, "destroy")
+            except Exception:
+                print("Failed to destroy Blockade!")
+                traceback.print_exc(file=sys.stdout)
