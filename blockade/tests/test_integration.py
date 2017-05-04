@@ -23,6 +23,7 @@ import time
 from io import StringIO
 from textwrap import dedent
 
+import docker
 import six
 import mock
 from clint.textui.colored import ColoredString
@@ -360,6 +361,37 @@ class IntegrationTests(unittest.TestCase):
             self.call_blockade("-c", config_path, "stop", "c1", "c2")
             self.call_blockade("-c", config_path, "start", "c1", "c2")
             self.call_blockade("-c", config_path, "slow", "c1", "c2")
+        finally:
+            try:
+                self.call_blockade("-c", config_path, "destroy")
+            except Exception:
+                print("Failed to destroy Blockade!")
+                traceback.print_exc(file=sys.stdout)
+
+    @unittest.skipIf(*INT_SKIP)
+    def test_restart_container_with_docker_then_action(self):
+        config_path = example_config_path("sleep/blockade.yaml")
+
+        try:
+            self.call_blockade("-c", config_path, "up")
+
+            stdout, _ = self.call_blockade("-c", config_path, "status",
+                                           "--json")
+            parsed = json.loads(stdout)
+            # find the c1 container ID
+            kill_id = None
+            for c in parsed:
+                if c['name'] == "c1":
+                    kill_id = c['container_id']
+            if kill_id is None:
+                raise Exception("A container name c1 was not found")
+            docker_client = docker.Client(
+                **docker.utils.kwargs_from_env(assert_hostname=False))
+
+            docker_client.stop(kill_id)
+            docker_client.start(kill_id)
+
+            self.call_blockade("-c", config_path, "slow", "c1")
         finally:
             try:
                 self.call_blockade("-c", config_path, "destroy")

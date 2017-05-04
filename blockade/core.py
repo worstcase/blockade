@@ -94,10 +94,7 @@ class Blockade(object):
                 time.sleep(container.start_delay)
 
             container_id = self._start_container(container, force)
-            device = self._init_container(container_id, name)
-
-            # store device in state file
-            container_state[name] = {'device': device, 'id': container_id}
+            container_state[name] = {'id': container_id}
 
         # clear progress line
         vprint('\r')
@@ -112,7 +109,7 @@ class Blockade(object):
 
         return container_descriptions
 
-    def _init_container(self, container_id, container_name):
+    def _get_device_id(self, container_id, container_name):
         # next we have to determine the veth pair of host/container
         # that we formerly could pass in via 'lxc_conf' which is
         # deprecated since docker > 1.6
@@ -233,7 +230,7 @@ class Blockade(object):
 
         if (network_state and name in self.state.containers
                 and container_status == ContainerStatus.UP):
-            device = state_container['device']
+            device = self._get_device_id(container_id, name)
             extras['device'] = device
             extras['network_state'] = self.network.network_state(device)
 
@@ -353,7 +350,7 @@ class Blockade(object):
             containers = self._get_running_containers(container_names, select_random)
             container_names = [c.name for c in containers]
             for container in containers:
-                device = container.device
+                device = self._get_device_id(container.container_id, container.name)
                 func(device)
             return container_names
         except Exception as ex:
@@ -460,12 +457,9 @@ class Blockade(object):
 
         # TODO: determine between create and/or start?
         self.docker_client.start(container_id)
-        device = self._init_container(container_id, container)
-
         # update state
         updated_containers = self.state.containers
-        updated_containers[container] = {'id': container_id, 'device': device}
-        self.state.update(updated_containers)
+        updated_containers[container] = {'id': container_id}
 
     def random_partition(self):
         containers = [c.name for c in self._get_running_containers()
@@ -563,10 +557,7 @@ class Blockade(object):
             # check if this name is already in the state file
             if self.state.container_id(name) is not None:
                 continue
-
-            device = self._init_container(container_id, name)
-            updated_containers[name] = {'id': container_id, 'device': device}
-
+            updated_containers[name] = {'id': container_id}
         # persist the state
         self.state.update(updated_containers)
 
@@ -576,7 +567,6 @@ class Blockade(object):
 
 class Container(object):
     ip_address = None
-    device = None
     network_state = NetworkState.NORMAL
     partition = None
 
@@ -595,7 +585,6 @@ class Container(object):
                     container_id=self.container_id,
                     status=self.status,
                     ip_address=self.ip_address,
-                    device=self.device,
                     network_state=self.network_state,
                     partition=self.partition)
 
