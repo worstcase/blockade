@@ -324,3 +324,53 @@ class RestIntegrationTests(LiveServerTestCase):
         assert result.status_code == 200
         result = requests.get(url)
         assert result.status_code == 500
+
+    @unittest.skipIf(*INT_SKIP)
+    def test_action_stop_start_slow(self):
+        data = '''
+            {
+                "partitions": [["c1"], ["c2"]]
+            }
+        '''
+        url = self.url + '/partitions'
+        result = requests.post(url, headers=self.headers, data=data)
+        assert result.status_code == 204
+        self._assert_partition()
+        self._assert_event('partition')
+        result = requests.delete(url)
+        self._assert_join()
+
+        data = '''
+            {
+                "command": "stop",
+                "container_names": ["c2"]
+            }
+        '''
+        url = self.url + '/action'
+        result = requests.post(url, headers=self.headers, data=data)
+        assert result.status_code == 204
+        self._assert_container_status('c2', 'DOWN')
+        time.sleep(90)
+        data = '''
+            {
+                "command": "start",
+                "container_names": ["c2"]
+            }
+        '''
+        url = self.url + '/action'
+        result = requests.post(url, headers=self.headers, data=data)
+        assert result.status_code == 204
+        self._assert_container_status('c2', 'UP')
+
+        data = '''
+            {
+                "network_state": "slow",
+                "container_names": ["c1"]
+            }
+        '''
+        url = self.url + '/network_state'
+        result = requests.post(url, headers=self.headers, data=data)
+        assert result.status_code == 204
+        self._assert_container_network_state('c1', 'SLOW')
+        url = self.url + '/events'
+        result = requests.get(url, headers=self.headers, data=data)
