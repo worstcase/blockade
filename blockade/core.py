@@ -53,7 +53,7 @@ class Blockade(object):
             _logger.exception(ex)
             raise
 
-        default_client = docker.Client(
+        default_client = docker.APIClient(
             **docker.utils.kwargs_from_env(assert_hostname=False)
         )
         self.docker_client = docker_client or default_client

@@ -29,7 +29,7 @@ _logger = logging.getLogger(__name__)
 class HostExecHelper(object):
     def __init__(self):
         self.prefix = "blockade-test-" + uuid.uuid4().hex[:8]
-        self.docker = docker.Client(
+        self.docker = docker.APIClient(
             **docker.utils.kwargs_from_env(assert_hostname=False))
 
     def setup_prefix_env(self):
