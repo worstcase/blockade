@@ -1,6 +1,6 @@
 
 VAGRANTFILE_API_VERSION = "2"
-BOX_NAME = ENV['BOX_NAME'] || "ubuntu/trusty64"
+BOX_NAME = ENV['BOX_NAME'] || "ubuntu/xenial64"
 module OS
     def OS.windows?
         (/cygwin|mswin|mingw|bccwin|wince|emx/ =~ RUBY_PLATFORM) != nil
@@ -21,7 +21,7 @@ if [ ! -f /etc/default/docker ]; then
 fi
 
 apt-get update
-apt-get -y install python-pip python-virtualenv python-dev python3.4-dev
+apt-get -y install python-pip python-virtualenv python-dev python3-dev
 
 cd /vagrant
 
@@ -73,7 +73,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # fetch the ubuntu:latest image that is required for
   # the test suite
   config.vm.provision "docker",
-    images: ["ubuntu:trusty"]
+     images: ["krallin/ubuntu-tini:trusty"]
 
   # kick off the tests automatically
   config.vm.provision "shell", inline: script
