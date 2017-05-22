@@ -42,7 +42,7 @@ setup(
     long_description=readme + '\n\n' + changes + '\n\n',
     author='David LaBissoniere',
     author_email='david@labisso.com',
-    url="https://github.com/dcm-oss/blockade",
+    url="https://github.com/worstcase/blockade",
     packages=find_packages(),
     include_package_data=True,
     install_requires=requires,
