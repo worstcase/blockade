@@ -57,7 +57,7 @@ class HostExec(object):
         else:
             self._container_prefix = DEFAULT_CONTAINER_PREFIX
 
-        self._docker_client = docker_client or docker.Client(
+        self._docker_client = docker_client or docker.APIClient(
             **docker.utils.kwargs_from_env(assert_hostname=False)
         )
         self._lock = threading.RLock()
@@ -124,8 +124,11 @@ class HostExec(object):
             self._image, command, name)
 
         def _create():
+            host_config = self._docker_client.create_host_config(
+                network_mode="host", privileged=True)
             return self._docker_client.create_container(
-                image=self._image, command=command, name=name)
+                image=self._image, command=command, name=name,
+                host_config=host_config)
 
         try:
             container = _create()
@@ -134,8 +137,7 @@ class HostExec(object):
             container = _create()
 
         container_id = container.get('Id')
-        self._docker_client.start(container=container_id,
-                            network_mode="host", privileged=True)
+        self._docker_client.start(container=container_id)
 
         self._container_id = container_id
         self._container_expire_time = time.time() + float(self._container_expire)

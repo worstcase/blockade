@@ -385,7 +385,7 @@ class IntegrationTests(unittest.TestCase):
                     kill_id = c['container_id']
             if kill_id is None:
                 raise Exception("A container name c1 was not found")
-            docker_client = docker.Client(
+            docker_client = docker.APIClient(
                 **docker.utils.kwargs_from_env(assert_hostname=False))
 
             docker_client.stop(kill_id)

@@ -28,20 +28,23 @@ def docker_run(command,
                privileged=True,
                docker_client=None):
 
-    default_client = docker.Client(
+    default_client = docker.APIClient(
         **docker.utils.kwargs_from_env(assert_hostname=False)
     )
     docker_client = docker_client or default_client
 
+    host_config = docker_client.create_host_config(
+            network_mode=network_mode, privileged=privileged)
+
     try:
-        container = docker_client.create_container(image=image, command=command)
+        container = docker_client.create_container(
+                image=image, command=command, host_config=host_config)
     except docker.errors.NotFound:
         docker_client.pull(image)
-        container = docker_client.create_container(image=image, command=command)
+        container = docker_client.create_container(
+                image=image, command=command, host_config=host_config)
 
-    docker_client.start(container=container.get('Id'),
-                        network_mode=network_mode,
-                        privileged=privileged)
+    docker_client.start(container=container.get('Id'))
 
     stdout = docker_client.logs(container=container.get('Id'),
                                 stdout=True, stream=True)
@@ -66,7 +69,7 @@ def docker_run(command,
 
 
 def check_docker():
-    client = docker.Client(
+    client = docker.APIClient(
         **docker.utils.kwargs_from_env(assert_hostname=False)
     )
     try:

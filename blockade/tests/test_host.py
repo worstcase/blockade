@@ -39,7 +39,7 @@ class HostExecTests(unittest.TestCase):
     def setUp(self):
         self.helper = HostExecHelper()
 
-        self.docker = docker.Client(
+        self.docker = docker.APIClient(
             **docker.utils.kwargs_from_env(assert_hostname=False))
 
     def tearDown(self):
