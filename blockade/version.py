@@ -17,4 +17,4 @@
 # WARNING: place nothing else into this file. It is directly exec'd by
 # setup.py.
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"

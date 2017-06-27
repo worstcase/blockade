@@ -1,9 +1,25 @@
 Changelog
 =========
 
+0.4.0 (2017-06-26)
+------------------
+- Added new chaos functionality. When used, blockade will randomly
+  select containers to impair with partitions, slow network, etc.
+  Contributed by John Bresnahan (@buzztroll) of Stardog Union.
+- Added an event trail that logs all blockade events that are run
+  against a blockade over its lifetime. This can be helpful in
+  correlating blockade events to application errors. Contributed by
+  John Bresnahan (@buzztroll) of Stardog Union.
+- Substantially improved overall performance by using a cached container
+  for all host commands.
+- #62: Fixed bug with using blockade commands against a restarted
+  container. Contributed by John Bresnahan (@buzztroll) of Stardog Union.
+- Updated Docker SDK and API version. Contributed by Vladimir Borodin
+  (dev1ant).
+
 
 0.3.1 (2016-12-09)
----------------
+------------------
 - #43: Restore support for loading from ``blockade.yml`` config file.
 - #26: Improved error messages when running blockade without access
   to the Docker API.
