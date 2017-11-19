@@ -261,7 +261,7 @@ This operation takes the same options as the create.
 
 ::
 
-    POST /blockade/<name>/chaos
+    PUT /blockade/<name>/chaos
     Content-Type: application/json
 
     {
