@@ -18,7 +18,7 @@ import sys
 import traceback
 
 from flask import Flask, abort, jsonify, request, Response
-from gevent.wsgi import WSGIServer
+from gevent.pywsgi import WSGIServer
 
 from blockade import chaos
 from blockade import errors
