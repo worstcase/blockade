@@ -157,6 +157,8 @@ class Blockade(object):
             cap_add=container.cap_add)
 
         def create_container():
+            # pull image from dockerHub
+            self.docker_client.pull(container.image)
             # try to create container
             response = self.docker_client.create_container(
                 container.image,
