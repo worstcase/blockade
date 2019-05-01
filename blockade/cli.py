@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import argparse
 import logging
 import os
 import threading
-import argparse
 import errno
 import json
 import sys
@@ -609,12 +609,12 @@ def main(args=None):
     rc = 0
 
     try:
-
         # don't bother pinging docker for a version command
         if opts.func != cmd_version:
             check_docker()
 
         opts.func(opts)
+
     except InsufficientPermissionsError as e:
         puts_err(colored.red(
                  "\nInsufficient permissions error:\n") + str(e) + "\n")
@@ -628,6 +628,9 @@ def main(args=None):
 
     except SystemExit:
         pass
+
+    except AttributeError:
+        parser.print_help()
 
     except:
         puts_err(
