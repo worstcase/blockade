@@ -57,7 +57,7 @@ parameters for the blockade modes. Example:
         image: my_docker_image
         command: /bin/myapp
         volumes:
-          "/opt/myapp": "/opt/myapp_host"
+          "/opt/myapp_host": "/opt/myapp"
         expose: [80]
         environment:
           "IS_MASTER": 1
