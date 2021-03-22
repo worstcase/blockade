@@ -158,6 +158,15 @@ class Blockade(object):
 
         def create_container():
             # try to create container
+            if container.docker_network and container.ipv4_address:
+                container.networking_config = self.docker_client.create_networking_config({
+                    container.docker_network: self.docker_client.create_endpoint_config(
+                        ipv4_address=container.ipv4_address
+                    )
+                })
+            else:
+                container.networking_config = None
+
             response = self.docker_client.create_container(
                 container.image,
                 command=container.command,
@@ -167,7 +176,8 @@ class Blockade(object):
                 hostname=container.hostname,
                 environment=container.environment,
                 host_config=host_config,
-                labels={"blockade.id": self.state.blockade_id})
+                labels={"blockade.id": self.state.blockade_id},
+                networking_config=container.networking_config)
             return response['Id']
 
         try:

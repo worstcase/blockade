@@ -60,7 +60,9 @@ class BlockadeContainerConfig(object):
                 neutral=values.get('neutral', False),
                 holy=values.get('holy', False),
                 container_name=with_index(values.get('container_name'), idx),
-                cap_add=values.get('cap_add'))
+                cap_add=values.get('cap_add'),
+                ipv4_address=values.get('ipv4_address'),
+                docker_network=values.get('docker_network'))
 
         if count == 1:
             yield get_instance(name)
@@ -72,7 +74,7 @@ class BlockadeContainerConfig(object):
     def __init__(self, name, image, command=None, links=None, volumes=None,
                  publish_ports=None, expose_ports=None, environment=None,
                  hostname=None, dns=None, start_delay=0, neutral=False,
-                 holy=False, container_name=None, cap_add=None):
+                 holy=False, container_name=None, cap_add=None, ipv4_address=None, docker_network=None):
         self.name = name
         self.hostname = hostname
         self.dns = dns
@@ -85,6 +87,8 @@ class BlockadeContainerConfig(object):
         self.holy = holy
         self.container_name = container_name
         self.cap_add = cap_add
+        self.ipv4_address = ipv4_address
+        self.docker_network = docker_network
 
         if neutral and holy:
             raise BlockadeConfigError("container must not be 'neutral' and 'holy' at the same time")
@@ -124,6 +128,7 @@ class BlockadeConfig(object):
         Instantiate a BlockadeConfig instance based on
         a given dictionary of configuration values
         '''
+
         try:
             containers = values['containers']
             parsed_containers = {}
