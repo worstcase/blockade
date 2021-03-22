@@ -48,9 +48,14 @@ def docker_run(command,
 
     stdout = docker_client.logs(container=container.get('Id'),
                                 stdout=True, stream=True)
+
+    max_len = 1000000
     output = b''
     for item in stdout:
         output += item
+        if len(output) > max_len:
+            output += "\n...<more>"
+            break
 
     output = output.decode('utf-8')
 
